@@ -190,6 +190,15 @@ def test_admin() -> None:
     node_collection = response.json()
     assert len(node_collection["nodes"]) >= ADMIN_TEST_NODE_COUNT
 
+    for node in node_collection["nodes"]:
+        assert "name" in node
+        assert "activated" in node
+
+    for node in node_collection["nodes"]:
+        name = node["name"]
+        response = client.delete(f"{server}/api/v1/node/{name}")
+        assert response.status_code == 204
+
 
 def test_not_found() -> None:
     client = get_test_client()
