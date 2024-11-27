@@ -7,9 +7,9 @@ from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
-from pydantic import BaseModel, Field
 
 from .db_models import TapirNode, TapirNodeSecret
+from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
 from .utils import verify_x509_csr
 
 logger = logging.getLogger(__name__)
@@ -18,36 +18,6 @@ tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
 router = APIRouter()
-
-
-class PublicJwk(BaseModel):
-    kty: str
-    crv: str
-    x: str
-
-
-class NodeInformation(BaseModel):
-    name: str = Field(title="Node name")
-    public_key: PublicJwk | None = Field(title="Public key")
-
-    @classmethod
-    def from_db_model(cls, node: TapirNode):
-        return cls(name=node.name, public_key=PublicJwk(**node.public_key))
-
-
-class NodeConfiguration(BaseModel):
-    name: str = Field(title="Node name")
-    mqtt_broker: str = Field(title="MQTT Broker")
-    mqtt_topics: dict[str, str] = Field("MQTT Topics")
-    trusted_keys: list[dict[str, str]] = Field(title="Trusted keys")
-    x509_certificate: str = Field(title="X.509 Certificate")
-    x509_ca_bundle: str = Field(title="X.509 CA Certificate Bundle")
-    x509_ca_url: str = Field(title="X.509 CA URL")
-
-
-class NodeBootstrapInformation(BaseModel):
-    name: str = Field(title="Node name")
-    secret: str = Field(title="Enrollment secret")
 
 
 @router.post(
@@ -82,6 +52,20 @@ def get_node_information(name: str) -> NodeInformation:
     if node is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     return NodeInformation.from_db_model(node)
+
+
+@router.get(
+    "/api/v1/nodes",
+    responses={
+        200: {"model": NodeCollection},
+        404: {},
+    },
+    tags=["backend"],
+)
+def get_all_nodes() -> NodeCollection:
+    """Get all nodes"""
+
+    return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(deleted=None)])
 
 
 @router.get(
