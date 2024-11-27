@@ -23,7 +23,11 @@ class MongoDB(BaseModel):
 
 
 class StepSettings(BaseModel):
-    server: AnyHttpUrl | None = Field(default="http://localhost:9000")
+    ca_url: AnyHttpUrl
+    ca_fingerprint: str | None = None
+    ca_fingerprint_file: FilePath | None = None
+    provisioner_name: str
+    provisioner_private_key: FilePath
 
 
 class VaultSettings(BaseModel):
@@ -40,8 +44,8 @@ class NodesSettings(BaseModel):
 
 class Settings(BaseSettings):
     mongodb: MongoDB = Field(default=MongoDB())
-    step_ca: StepSettings = Field(default=StepSettings())
-    vault: VaultSettings = Field(default=VaultSettings())
+    step: StepSettings | None = None
+    # vault: VaultSettings = Field(default=VaultSettings())
     otlp: OtlpSettings | None = None
 
     nodes: NodesSettings = Field(default=NodesSettings())

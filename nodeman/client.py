@@ -57,8 +57,16 @@ def main() -> None:
     else:
         logging.basicConfig(level=logging.INFO)
 
-    name = args.name
-    secret = args.secret
+    if args.name is None and args.secret is None:
+        response = httpx.post(urljoin(args.server, "/api/v1/node"))
+        response.raise_for_status()
+        create_response = response.json()
+        name = create_response["name"]
+        secret = create_response["secret"]
+        logging.info("Got name=%s secret=%s", name, secret)
+    else:
+        name = args.name
+        secret = args.secret
 
     hmac_key = JWK(kty="oct", k=secret)
     hmac_alg = "HS256"
@@ -67,7 +75,7 @@ def main() -> None:
     data_alg = jwk_to_alg(data_key)
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
-    x509_csr = generate_x509_csr(key=x509_key, name=name).decode()
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
 
@@ -81,7 +89,8 @@ def main() -> None:
     response.raise_for_status()
 
     enrollment_response = response.json()
-    print(json.dumps(enrollment_response, indent=4))
+    if args.debug:
+        print(json.dumps(enrollment_response, indent=4))
 
     if args.data_jwk_file:
         with open(args.data_jwk_file, "w") as fp:
@@ -103,7 +112,7 @@ def main() -> None:
 
     if args.tls_ca_file:
         with open(args.tls_ca_file, "w") as fp:
-            fp.write(enrollment_response["x509_ca_bundle"])
+            fp.write(enrollment_response["x509_ca_certificate"])
 
 
 if __name__ == "__main__":

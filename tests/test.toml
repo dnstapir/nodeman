@@ -1,0 +1,11 @@
+[mongodb]
+server =  "mongomock://localhost/nodes"
+
+[nodes]
+domain = "dev.dnstapir.se"
+#trusted_keys = "trusted_keys.json"
+mqtt_broker = "mqtts://localhost"
+
+[nodes.mqtt_topics]
+tem = "configuration/tem"
+pop = "configuration/pop"

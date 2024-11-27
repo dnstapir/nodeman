@@ -1,20 +1,26 @@
-volumes:
- mongo:
- step-ca:
+#volumes:
+# mongo:
+# step-ca:
 
 services:
   mongo:
     image: mongo:latest
     ports:
       - 127.0.0.1:27017:27017/tcp
-    volumes:
-      - mongo:/data/db
-  step-ca:
+    #volumes:
+    #  - mongo:/data/db
+  step:
     image: smallstep/step-ca
     ports:
       - "9000:9000/tcp"
-    volumes:
-      - step-ca:/home/step
+    environment:
+      DOCKER_STEPCA_INIT_NAME: "Node Manager Test"
+      DOCKER_STEPCA_INIT_DNS_NAMES: localhost
+      DOCKER_STEPCA_INIT_PROVISIONER_NAME: admin
+      DOCKER_STEPCA_INIT_PASSWORD: password
+      DOCKER_STEPCA_INIT_REMOTE_MANAGEMENT: true
+    #volumes:
+    #  - step-ca:/home/step
   vault:
     image: hashicorp/vault:latest
     environment:

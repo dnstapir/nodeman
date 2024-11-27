@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 import mongoengine
 import uvicorn
 from fastapi import FastAPI
+from jwcrypto.jwk import JWK
 from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -15,7 +16,8 @@ from dnstapir.logging import configure_json_logging
 from dnstapir.opentelemetry import configure_opentelemetry
 
 from . import OPENAPI_METADATA, __verbose_version__
-from .settings import Settings
+from .settings import Settings, StepSettings
+from .step import StepClient
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,31 @@ class NodemanServer(FastAPI):
             with open(self.settings.nodes.trusted_keys) as fp:
                 keys = json.load(fp)
                 self.trusted_keys = keys.get("keys", [])
+        else:
+            self.logger.warning("Starting without trusted keys")
+
+        self.step_client: StepClient | None
+        self.step_client = self.get_step_client(self.settings.step) if self.settings.step else None
+
+    @staticmethod
+    def get_step_client(settings: StepSettings) -> StepClient:
+        if filename := settings.ca_fingerprint_file:
+            with open(filename) as fp:
+                ca_fingerprint = fp.read().rstrip()
+        else:
+            ca_fingerprint = settings.ca_fingerprint
+
+        with open(str(settings.provisioner_private_key)) as fp:
+            provisioner_jwk = JWK.from_json(fp.read())
+
+        res = StepClient(
+            ca_url=str(settings.ca_url),
+            ca_fingerprint=ca_fingerprint,
+            provisioner_name=settings.provisioner_name,
+            provisioner_jwk=provisioner_jwk,
+        )
+        logger.info("Connected to StepCA %s (%s)", res.ca_url, ca_fingerprint)
+        return res
 
     def connect_mongodb(self):
         if mongodb_host := str(self.settings.mongodb.server):

@@ -3,6 +3,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
@@ -10,7 +12,6 @@ from opentelemetry import metrics, trace
 
 from .db_models import TapirNode, TapirNodeSecret
 from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
-from .utils import verify_x509_csr
 
 logger = logging.getLogger(__name__)
 
@@ -187,70 +188,25 @@ async def enroll_node(
     node.public_key = public_key.export(as_dict=True)
 
     # Verify X.509 CSR
-    x509_csr_pem = message["x509_csr"]
-    verify_x509_csr(name=name, csr_pem=x509_csr_pem)
+    x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
 
-    # TODO: issue certificate via StepCA
-    x509_certificate = """
------BEGIN CERTIFICATE-----
-MIICUTCCAfigAwIBAgIQIeTTK2bCEzCbi3oFPEwAjjAKBggqhkjOPQQDAjBQMR4w
-HAYDVQQKExVETlMgVEFQSVIgRGV2ZWxvcG1lbnQxLjAsBgNVBAMTJUROUyBUQVBJ
-UiBEZXZlbG9wbWVudCBJbnRlcm1lZGlhdGUgQ0EwHhcNMjQxMTI3MDgzNzExWhcN
-MjQxMTI4MDgzODExWjAiMSAwHgYDVQQDExdleGFtcGxlLmRldi5kbnN0YXBpci5z
-ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABITC/mXGuwQQRxDk/j6JWweHmTGv
-yiSvjVjVkghEJLiPMf/xw9eIplMJ6/am+VTLpGDY3a7Nyw6/cWxhySXxT4ejgeEw
-gd4wDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
-AjAdBgNVHQ4EFgQUgkraniNmsMvzKeSucc2NiBQ3N8wwHwYDVR0jBBgwFoAU+BTb
-OgWQQHMnqW6jW1BcKNSW5dkwIgYDVR0RBBswGYIXZXhhbXBsZS5kZXYuZG5zdGFw
-aXIuc2UwSQYMKwYBBAGCpGTGKEABBDkwNwIBAQQFYWRtaW4EK0JybWpFd2RMVFF4
-OVZvX0NOUGVDX196M01aUjlNTGFhX2dCZzA0VkxwSWcwCgYIKoZIzj0EAwIDRwAw
-RAIgHS49wTwHbXFuly0y0zamWsuXYKJRPawLQud4G7hALqQCIHw92lr9oiY7XAe6
-d57ra+ag1F6X7Ix71igrxZPOyr7U
------END CERTIFICATE-----
------BEGIN CERTIFICATE-----
-MIIB/DCCAaKgAwIBAgIQIpjXFAKEg0IDm+E5uYuhlTAKBggqhkjOPQQDAjBIMR4w
-HAYDVQQKExVETlMgVEFQSVIgRGV2ZWxvcG1lbnQxJjAkBgNVBAMTHUROUyBUQVBJ
-UiBEZXZlbG9wbWVudCBSb290IENBMB4XDTIzMDgyOTExMTIyM1oXDTMzMDgyNjEx
-MTIyM1owUDEeMBwGA1UEChMVRE5TIFRBUElSIERldmVsb3BtZW50MS4wLAYDVQQD
-EyVETlMgVEFQSVIgRGV2ZWxvcG1lbnQgSW50ZXJtZWRpYXRlIENBMFkwEwYHKoZI
-zj0CAQYIKoZIzj0DAQcDQgAEVLtZDO6SuGslPRZvzkaiglmELmYouwYSDLTvgtfr
-PxfvzxZYyXlA0Dfs3M4yFn77OBxq1C5/R0qgucuUkp5TQ6NmMGQwDgYDVR0PAQH/
-BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFPgU2zoFkEBzJ6lu
-o1tQXCjUluXZMB8GA1UdIwQYMBaAFFq+HmvHMyGR7Lm+OXSbkIvVjfvNMAoGCCqG
-SM49BAMCA0gAMEUCIA1ng0NqREdHUA4p17Y9hpXYxmC6U5Kz6+zAsGfcaFA5AiEA
-1T7Uz4xMHhlA9Wl8u9MYUyxVmA+jb6ylqmG/D/EQF24=
------END CERTIFICATE-----
-"""
-
-    x509_ca_bundle = """
------BEGIN CERTIFICATE-----
-MIIB1DCCAXqgAwIBAgIRAP8qglZYdllt06JygJ/NKTQwCgYIKoZIzj0EAwIwSDEe
-MBwGA1UEChMVRE5TIFRBUElSIERldmVsb3BtZW50MSYwJAYDVQQDEx1ETlMgVEFQ
-SVIgRGV2ZWxvcG1lbnQgUm9vdCBDQTAeFw0yMzA4MjkxMTEyMjJaFw0zMzA4MjYx
-MTEyMjJaMEgxHjAcBgNVBAoTFUROUyBUQVBJUiBEZXZlbG9wbWVudDEmMCQGA1UE
-AxMdRE5TIFRBUElSIERldmVsb3BtZW50IFJvb3QgQ0EwWTATBgcqhkjOPQIBBggq
-hkjOPQMBBwNCAAShWMzpiyNTGWQW75q8Ac5+K+t0S3MWlkpqVVCSGRkqwtgpKK8b
-E8WqJfV/KftwG/V67uBjCS3GptuLtUwAjER1o0UwQzAOBgNVHQ8BAf8EBAMCAQYw
-EgYDVR0TAQH/BAgwBgEB/wIBATAdBgNVHQ4EFgQUWr4ea8czIZHsub45dJuQi9WN
-+80wCgYIKoZIzj0EAwIDSAAwRQIgb3/xC7FGZ2jlVh+62hPIMjdS56Q5OgCsninc
-tVryoi0CIQCs5HThsuvcCn0EC7vIgG6wRx6D6L37UNuwVPPVpEkYBQ==
------END CERTIFICATE-----
-"""
-
-    print(x509_ca_bundle)
+    step_ca_response = request.app.step_client.sign_csr(x509_csr, name)
+    x509_certificate = "".join(
+        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in step_ca_response.cert_chain]
+    )
+    x509_ca_certificate = step_ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    x509_ca_url = request.app.step_client.ca_url
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()
     node_secret.delete()
 
-    x509_ca_url = str(request.app.settings.step_ca.server)
-
     return NodeConfiguration(
         name=name,
-        mqtt_broker=str(request.app.settings.nodes.mqtt_broker),
+        mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
         trusted_keys=request.app.trusted_keys,
         x509_certificate=x509_certificate,
-        x509_ca_bundle=x509_ca_bundle,
+        x509_ca_certificate=x509_ca_certificate,
         x509_ca_url=x509_ca_url,
     )
