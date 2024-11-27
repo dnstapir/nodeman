@@ -1,0 +1,25 @@
+[mongodb]
+#server =  "mongodb://localhost/nodes"
+server = "mongomock://localhost/nodes"
+
+[step_ca]
+server = "http://localhost:9000"
+
+[vault]
+server = "http://localhost:8200"
+
+[nodes]
+domain = "dev.dnstapir.se"
+trusted_keys = "trusted_keys.json"
+mqtt_broker = "mqtts://localhost"
+
+[nodes.mqtt_topics]
+tem = "configuration/tem"
+pop = "configuration/pop"
+
+
+
+#[otlp]
+#spans_endpoint = "http://localhost:4317"
+#metrics_endpoint = "http://localhost:4317"
+#insecure = true
