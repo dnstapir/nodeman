@@ -7,9 +7,9 @@ from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
-from pydantic import BaseModel, Field
 
 from .db_models import TapirNode, TapirNodeSecret
+from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
 from .utils import verify_x509_csr
 
 logger = logging.getLogger(__name__)
@@ -18,36 +18,6 @@ tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
 router = APIRouter()
-
-
-class PublicJwk(BaseModel):
-    kty: str
-    crv: str
-    x: str
-
-
-class NodeInformation(BaseModel):
-    name: str = Field(title="Node name")
-    public_key: PublicJwk | None = Field(title="Public key")
-
-    @classmethod
-    def from_db_model(cls, node: TapirNode):
-        return cls(name=node.name, public_key=PublicJwk(**node.public_key))
-
-
-class NodeConfiguration(BaseModel):
-    name: str = Field(title="Node name")
-    mqtt_broker: str = Field(title="MQTT Broker")
-    mqtt_topics: dict[str, str] = Field("MQTT Topics")
-    trusted_keys: list[dict[str, str]] = Field(title="Trusted keys")
-    x509_certificate: str = Field(title="X.509 Certificate")
-    x509_ca_bundle: str = Field(title="X.509 CA Certificate Bundle")
-    x509_ca_url: str = Field(title="X.509 CA URL")
-
-
-class NodeBootstrapInformation(BaseModel):
-    name: str = Field(title="Node name")
-    secret: str = Field(title="Enrollment secret")
 
 
 @router.post(
@@ -82,6 +52,20 @@ def get_node_information(name: str) -> NodeInformation:
     if node is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     return NodeInformation.from_db_model(node)
+
+
+@router.get(
+    "/api/v1/nodes",
+    responses={
+        200: {"model": NodeCollection},
+        404: {},
+    },
+    tags=["backend"],
+)
+def get_all_nodes() -> NodeCollection:
+    """Get all nodes"""
+
+    return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(deleted=None)])
 
 
 @router.get(
@@ -207,8 +191,53 @@ async def enroll_node(
     verify_x509_csr(name=name, csr_pem=x509_csr_pem)
 
     # TODO: issue certificate via StepCA
-    x509_certificate = "__CERTIFICATE_PLACEHOLDER_"
-    x509_ca_bundle = "__CA_BUNDLE_PLACEHOLDER__"
+    x509_certificate = """
+-----BEGIN CERTIFICATE-----
+MIICUTCCAfigAwIBAgIQIeTTK2bCEzCbi3oFPEwAjjAKBggqhkjOPQQDAjBQMR4w
+HAYDVQQKExVETlMgVEFQSVIgRGV2ZWxvcG1lbnQxLjAsBgNVBAMTJUROUyBUQVBJ
+UiBEZXZlbG9wbWVudCBJbnRlcm1lZGlhdGUgQ0EwHhcNMjQxMTI3MDgzNzExWhcN
+MjQxMTI4MDgzODExWjAiMSAwHgYDVQQDExdleGFtcGxlLmRldi5kbnN0YXBpci5z
+ZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABITC/mXGuwQQRxDk/j6JWweHmTGv
+yiSvjVjVkghEJLiPMf/xw9eIplMJ6/am+VTLpGDY3a7Nyw6/cWxhySXxT4ejgeEw
+gd4wDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcD
+AjAdBgNVHQ4EFgQUgkraniNmsMvzKeSucc2NiBQ3N8wwHwYDVR0jBBgwFoAU+BTb
+OgWQQHMnqW6jW1BcKNSW5dkwIgYDVR0RBBswGYIXZXhhbXBsZS5kZXYuZG5zdGFw
+aXIuc2UwSQYMKwYBBAGCpGTGKEABBDkwNwIBAQQFYWRtaW4EK0JybWpFd2RMVFF4
+OVZvX0NOUGVDX196M01aUjlNTGFhX2dCZzA0VkxwSWcwCgYIKoZIzj0EAwIDRwAw
+RAIgHS49wTwHbXFuly0y0zamWsuXYKJRPawLQud4G7hALqQCIHw92lr9oiY7XAe6
+d57ra+ag1F6X7Ix71igrxZPOyr7U
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIB/DCCAaKgAwIBAgIQIpjXFAKEg0IDm+E5uYuhlTAKBggqhkjOPQQDAjBIMR4w
+HAYDVQQKExVETlMgVEFQSVIgRGV2ZWxvcG1lbnQxJjAkBgNVBAMTHUROUyBUQVBJ
+UiBEZXZlbG9wbWVudCBSb290IENBMB4XDTIzMDgyOTExMTIyM1oXDTMzMDgyNjEx
+MTIyM1owUDEeMBwGA1UEChMVRE5TIFRBUElSIERldmVsb3BtZW50MS4wLAYDVQQD
+EyVETlMgVEFQSVIgRGV2ZWxvcG1lbnQgSW50ZXJtZWRpYXRlIENBMFkwEwYHKoZI
+zj0CAQYIKoZIzj0DAQcDQgAEVLtZDO6SuGslPRZvzkaiglmELmYouwYSDLTvgtfr
+PxfvzxZYyXlA0Dfs3M4yFn77OBxq1C5/R0qgucuUkp5TQ6NmMGQwDgYDVR0PAQH/
+BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFPgU2zoFkEBzJ6lu
+o1tQXCjUluXZMB8GA1UdIwQYMBaAFFq+HmvHMyGR7Lm+OXSbkIvVjfvNMAoGCCqG
+SM49BAMCA0gAMEUCIA1ng0NqREdHUA4p17Y9hpXYxmC6U5Kz6+zAsGfcaFA5AiEA
+1T7Uz4xMHhlA9Wl8u9MYUyxVmA+jb6ylqmG/D/EQF24=
+-----END CERTIFICATE-----
+"""
+
+    x509_ca_bundle = """
+-----BEGIN CERTIFICATE-----
+MIIB1DCCAXqgAwIBAgIRAP8qglZYdllt06JygJ/NKTQwCgYIKoZIzj0EAwIwSDEe
+MBwGA1UEChMVRE5TIFRBUElSIERldmVsb3BtZW50MSYwJAYDVQQDEx1ETlMgVEFQ
+SVIgRGV2ZWxvcG1lbnQgUm9vdCBDQTAeFw0yMzA4MjkxMTEyMjJaFw0zMzA4MjYx
+MTEyMjJaMEgxHjAcBgNVBAoTFUROUyBUQVBJUiBEZXZlbG9wbWVudDEmMCQGA1UE
+AxMdRE5TIFRBUElSIERldmVsb3BtZW50IFJvb3QgQ0EwWTATBgcqhkjOPQIBBggq
+hkjOPQMBBwNCAAShWMzpiyNTGWQW75q8Ac5+K+t0S3MWlkpqVVCSGRkqwtgpKK8b
+E8WqJfV/KftwG/V67uBjCS3GptuLtUwAjER1o0UwQzAOBgNVHQ8BAf8EBAMCAQYw
+EgYDVR0TAQH/BAgwBgEB/wIBATAdBgNVHQ4EFgQUWr4ea8czIZHsub45dJuQi9WN
++80wCgYIKoZIzj0EAwIDSAAwRQIgb3/xC7FGZ2jlVh+62hPIMjdS56Q5OgCsninc
+tVryoi0CIQCs5HThsuvcCn0EC7vIgG6wRx6D6L37UNuwVPPVpEkYBQ==
+-----END CERTIFICATE-----
+"""
+
+    print(x509_ca_bundle)
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()

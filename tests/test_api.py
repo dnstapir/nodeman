@@ -4,6 +4,7 @@ import uuid
 from urllib.parse import urljoin
 
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
@@ -11,6 +12,8 @@ from jwcrypto.jws import JWS
 from nodeman.server import NodemanServer
 from nodeman.settings import MongoDB, Settings
 from nodeman.utils import generate_x509_csr, jwk_to_alg
+
+ADMIN_TEST_NODE_COUNT = 100
 
 
 def get_test_client() -> TestClient:
@@ -36,6 +39,14 @@ def test_enroll() -> None:
     secret = create_response["secret"]
     logging.info("Got name=%s secret=%s", name, secret)
 
+    node_url = urljoin(server, f"/api/v1/node/{name}")
+
+    response = client.get(node_url)
+    assert response.status_code == 200
+    node_information = response.json()
+    assert node_information["name"] == name
+    assert node_information["activated"] is None
+
     hmac_key = JWK(kty="oct", k=secret)
     hmac_alg = "HS256"
 
@@ -52,35 +63,38 @@ def test_enroll() -> None:
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
     enrollment_request = jws.serialize()
 
-    url = urljoin(server, f"/api/v1/node/{name}/enroll")
-    response = client.post(url, json=enrollment_request)
+    node_enroll_url = f"{node_url}/enroll"
+
+    response = client.post(node_enroll_url, json=enrollment_request)
     assert response.status_code == 200
 
     enrollment_response = response.json()
     print(json.dumps(enrollment_response, indent=4))
 
-    url = urljoin(server, f"/api/v1/node/{name}/enroll")
-    response = client.post(url, json=enrollment_request)
+    response = client.post(node_enroll_url, json=enrollment_request)
     assert response.status_code == 400
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}"))
+    response = client.get(node_url)
     assert response.status_code == 200
-    print(json.dumps(response.json(), indent=4))
+    node_information = response.json()
+    print(json.dumps(node_information, indent=4))
+    assert node_information["name"] == name
+    assert node_information["activated"] is not None
 
-    public_key_url = urljoin(server, f"/api/v1/node/{name}/public_key")
+    public_key_url = f"{node_url}/public_key"
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == 200
-    print(json.dumps(response.json(), indent=4))
+    _ = JWK.from_json(response.text)
 
     response = client.get(public_key_url, headers={"Accept": "application/pem"})
     assert response.status_code == 200
-    print(response.text)
+    _ = load_pem_public_key(response.text.encode())
 
-    response = client.delete(urljoin(server, f"/api/v1/node/{name}"))
+    response = client.delete(node_url)
     assert response.status_code == 204
 
-    response = client.delete(urljoin(server, f"/api/v1/node/{name}"))
+    response = client.delete(node_url)
     assert response.status_code == 404
 
 
@@ -160,6 +174,30 @@ def test_enroll_bad_data_signature() -> None:
 
     response = client.delete(urljoin(server, f"/api/v1/node/{name}"))
     assert response.status_code == 204
+
+
+def test_admin() -> None:
+    client = get_test_client()
+    server = ""
+
+    for _ in range(ADMIN_TEST_NODE_COUNT):
+        response = client.post(urljoin(server, "/api/v1/node"))
+        assert response.status_code == 201
+
+    response = client.get(urljoin(server, "/api/v1/nodes"))
+    assert response.status_code == 200
+
+    node_collection = response.json()
+    assert len(node_collection["nodes"]) >= ADMIN_TEST_NODE_COUNT
+
+    for node in node_collection["nodes"]:
+        assert "name" in node
+        assert "activated" in node
+
+    for node in node_collection["nodes"]:
+        name = node["name"]
+        response = client.delete(f"{server}/api/v1/node/{name}")
+        assert response.status_code == 204
 
 
 def test_not_found() -> None:
