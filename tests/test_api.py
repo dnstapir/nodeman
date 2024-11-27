@@ -4,6 +4,7 @@ import uuid
 from urllib.parse import urljoin
 
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
@@ -11,6 +12,8 @@ from jwcrypto.jws import JWS
 from nodeman.server import NodemanServer
 from nodeman.settings import MongoDB, Settings
 from nodeman.utils import generate_x509_csr, jwk_to_alg
+
+ADMIN_TEST_NODE_COUNT = 100
 
 
 def get_test_client() -> TestClient:
@@ -82,11 +85,11 @@ def test_enroll() -> None:
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == 200
-    print(json.dumps(response.json(), indent=4))
+    _ = JWK.from_json(response.text)
 
     response = client.get(public_key_url, headers={"Accept": "application/pem"})
     assert response.status_code == 200
-    print(response.text)
+    _ = load_pem_public_key(response.text.encode())
 
     response = client.delete(node_url)
     assert response.status_code == 204
@@ -177,9 +180,7 @@ def test_admin() -> None:
     client = get_test_client()
     server = ""
 
-    count = 10
-
-    for _ in range(count):
+    for _ in range(ADMIN_TEST_NODE_COUNT):
         response = client.post(urljoin(server, "/api/v1/node"))
         assert response.status_code == 201
 
@@ -187,9 +188,7 @@ def test_admin() -> None:
     assert response.status_code == 200
 
     node_collection = response.json()
-    assert len(node_collection["nodes"]) >= count
-
-    print(node_collection)
+    assert len(node_collection["nodes"]) >= ADMIN_TEST_NODE_COUNT
 
 
 def test_not_found() -> None:
