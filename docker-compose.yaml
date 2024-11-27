@@ -1,0 +1,119 @@
+volumes:
+ mongo:
+ step-ca:
+
+services:
+  mongo:
+    image: mongo:latest
+    ports:
+      - 127.0.0.1:27017:27017/tcp
+    volumes:
+      - mongo:/data/db
+  step-ca:
+    image: smallstep/step-ca
+    ports:
+      - "9000:9000/tcp"
+    volumes:
+      - step-ca:/home/step
+  vault:
+    image: hashicorp/vault:latest
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: mekmitasdigoat
+    ports:
+      - "8200:8200/tcp"
+    configs:
+      - source: vault.json
+        target: /vault/config/local.json
+    cap_add:
+     - IPC_LOCK
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8888:8888"  # Prometheus metrics exposed by the collector
+      - "8889:8889"  # Prometheus exporter metrics
+    configs:
+      - source: otel-collector-config.yaml
+        target: /etc/otel-collector-config.yaml
+  jaeger-all-in-one:
+    # http://127.0.0.1:16686
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"
+  prometheus:
+    # http://127.0.0.1:9090
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    configs:
+      - source: prometheus.yaml
+        target: /etc/prometheus/prometheus.yml
+
+configs:
+  otel-collector-config.yaml:
+    content: |
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+      exporters:
+        debug:
+          verbosity: detailed
+        otlp:
+          endpoint: jaeger-all-in-one:4317
+          tls:
+            insecure: true
+        prometheus:
+          endpoint: "0.0.0.0:8889"
+      processors:
+        batch:
+      service:
+        pipelines:
+          traces:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [debug, otlp]
+          metrics:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [debug, prometheus]
+          logs:
+            receivers: [otlp]
+            processors: [batch]
+            exporters: [debug]
+  prometheus.yaml:
+    content: |
+      scrape_configs:
+        - job_name: 'otel-collector'
+          scrape_interval: 10s
+          static_configs:
+            - targets: ['otel-collector:8889']
+            - targets: ['otel-collector:8888']
+  vault.json:
+    content: |
+      {
+        "storage": {
+          "file": {
+            "path": "/vault/file"
+          }
+        },
+        "listener": [
+          {
+            "tcp": {
+              "address": "0.0.0.0:8200",
+              "tls_disable": true
+            }
+          }
+        ],
+        "default_lease_ttl": "168h",
+        "max_lease_ttl": "720h",
+        "ui": true
+      }
