@@ -15,7 +15,7 @@ from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
 from nodeman.server import NodemanServer
-from nodeman.settings import MongoDB, Settings
+from nodeman.settings import Settings
 from nodeman.step import StepSignResponse
 from nodeman.utils import generate_x509_csr, jwk_to_alg
 
