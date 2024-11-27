@@ -10,7 +10,7 @@ server = "http://localhost:8200"
 
 [nodes]
 domain = "dev.dnstapir.se"
-trusted_keys = "trusted_keys.json"
+#trusted_keys = "trusted_keys.json"
 mqtt_broker = "mqtts://localhost"
 
 [nodes.mqtt_topics]
