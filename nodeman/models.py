@@ -1,8 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from cryptography.x509 import load_pem_x509_certificates
+from pydantic import AnyHttpUrl, BaseModel, Field, field_validator
 
 from .db_models import TapirNode
+from .settings import MqttUrl
 
 
 class PublicJwk(BaseModel):
@@ -31,12 +33,17 @@ class NodeCollection(BaseModel):
 
 class NodeConfiguration(BaseModel):
     name: str = Field(title="Node name")
-    mqtt_broker: str = Field(title="MQTT Broker")
+    mqtt_broker: MqttUrl = Field(title="MQTT Broker")
     mqtt_topics: dict[str, str] = Field(title="MQTT Topics", default={})
-    trusted_keys: list[dict[str, str]] = Field(title="Trusted keys")
+    trusted_keys: list[PublicJwk] = Field(title="Trusted keys")
     x509_certificate: str = Field(title="X.509 Certificate")
     x509_ca_bundle: str = Field(title="X.509 CA Certificate Bundle")
-    x509_ca_url: str = Field(title="X.509 CA URL")
+    x509_ca_url: AnyHttpUrl = Field(title="X.509 CA URL")
+
+    @field_validator("x509_certificate", "x509_ca_bundle")
+    @classmethod
+    def validate_pem_bundle(cls, v: str):
+        load_pem_x509_certificates(v.encode())
 
 
 class NodeBootstrapInformation(BaseModel):
