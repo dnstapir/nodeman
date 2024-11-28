@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from jwcrypto.jwk import JWK
@@ -31,18 +32,21 @@ def test_step_ca() -> None:
     except FileNotFoundError:
         pytest.skip("CA provisioner private key not found")
 
+    try:
+        ca_client = StepClient(
+            ca_url=str(settings.ca_url),
+            ca_fingerprint=settings.ca_fingerprint,
+            provisioner_name=settings.provisioner_name,
+            provisioner_jwk=provisioner_jwk,
+        )
+    except httpx.ConnectError:
+        pytest.skip("StepCA not responding")
+
     name = "hostname.example.com"
     key = ec.generate_private_key(ec.SECP256R1())
     csr = generate_x509_csr(key=key, name=name)
 
     verify_x509_csr(name=name, csr=csr)
 
-    client = StepClient(
-        ca_url=str(settings.ca_url),
-        ca_fingerprint=settings.ca_fingerprint,
-        provisioner_name=settings.provisioner_name,
-        provisioner_jwk=provisioner_jwk,
-    )
-
-    res = client.sign_csr(csr, name)
+    res = ca_client.sign_csr(csr, name)
     print(res)
