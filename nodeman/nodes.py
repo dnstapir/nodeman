@@ -192,7 +192,12 @@ async def enroll_node(
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
     verify_x509_csr(name=name, csr=x509_csr)
 
-    step_ca_response = request.app.step_client.sign_csr(x509_csr, name)
+    try:
+        step_ca_response = request.app.step_client.sign_csr(x509_csr, name)
+    except Exception as exc:
+        logger.error("Failed to processes CSR for %s", name)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
+
     x509_certificate = "".join(
         [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in step_ca_response.cert_chain]
     )
