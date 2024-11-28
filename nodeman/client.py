@@ -62,7 +62,7 @@ def main() -> None:
             response = httpx.post(urljoin(args.server, "/api/v1/node"))
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            logging.error("Failed to create node: %s", str(e))
+            logging.error("Failed to create node: %s", str(exc))
             raise SystemExit(1) from exc
         create_response = response.json()
         name = create_response["name"]
