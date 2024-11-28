@@ -9,9 +9,17 @@ from .settings import MqttUrl
 
 class PublicJwk(BaseModel):
     kty: str
-    crv: str
-    x: str
+
+    # for EC and ED
+    crv: str | None = None
+    x: str | None = None
+
+    # for EC
     y: str | None = None
+
+    # for RSA
+    n: str | None = None
+    e: str | None = None
 
 
 class NodeInformation(BaseModel):

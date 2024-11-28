@@ -3,10 +3,13 @@ from dataclasses import dataclass
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509.oid import ExtensionOID, NameOID
 
-type PrivateKey = ec.EllipticCurvePrivateKey
+type PrivateKey = RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
 
 
 @dataclass(frozen=True)
@@ -21,6 +24,12 @@ class CertificateAuthorityClient(ABC):
         pass
 
 
+def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.SHA256 | None:
+    if isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
+        return None
+    return hashes.SHA256()
+
+
 def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequest:
     """Generate X.509 CSR with name and key"""
     return (
@@ -30,7 +39,7 @@ def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequ
             x509.SubjectAlternativeName([x509.DNSName(name)]),
             critical=False,
         )
-        .sign(key, hashes.SHA256())
+        .sign(key, get_hash_algorithm_from_key(key))
     )
 
 
