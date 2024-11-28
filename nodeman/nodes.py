@@ -12,6 +12,7 @@ from opentelemetry import metrics, trace
 
 from .db_models import TapirNode, TapirNodeSecret
 from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
+from .utils import verify_x509_csr
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,7 @@ async def enroll_node(
 
     # Verify X.509 CSR
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
+    verify_x509_csr(name=name, csr=x509_csr)
 
     step_ca_response = request.app.step_client.sign_csr(x509_csr, name)
     x509_certificate = "".join(
