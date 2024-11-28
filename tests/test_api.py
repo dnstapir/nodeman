@@ -104,9 +104,15 @@ def _test_enroll(data_key, x509_key) -> None:
     assert response.status_code == 404
 
 
-def test_enroll_p256_p256() -> None:
+def test_enroll_p256() -> None:
     data_key = JWK.generate(kty="EC", crv="P-256")
     x509_key = ec.generate_private_key(ec.SECP256R1())
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_p384() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-384")
+    x509_key = ec.generate_private_key(ec.SECP384R1())
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
@@ -116,19 +122,19 @@ def test_enroll_ed25519_p256() -> None:
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
-def test_enroll_ed25519_ed25519() -> None:
+def test_enroll_ed25519() -> None:
     data_key = JWK.generate(kty="OKP", crv="Ed25519")
     x509_key = Ed25519PrivateKey.generate()
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
-def test_enroll_ed448_ed448() -> None:
+def test_enroll_ed448() -> None:
     data_key = JWK.generate(kty="OKP", crv="Ed448")
     x509_key = Ed448PrivateKey.generate()
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
-def test_enroll_rsa_rsa() -> None:
+def test_enroll_rsa() -> None:
     data_key = JWK.generate(kty="RSA", size=2048)
     x509_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     _test_enroll(data_key=data_key, x509_key=x509_key)

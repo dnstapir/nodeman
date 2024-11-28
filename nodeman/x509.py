@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -24,9 +25,11 @@ class CertificateAuthorityClient(ABC):
         pass
 
 
-def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.SHA256 | None:
+def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.SHA256 | hashes.SHA384 | None:
     if isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
         return None
+    if isinstance(key, EllipticCurvePrivateKey) and isinstance(key.curve, ec.SECP384R1):
+        return hashes.SHA384()
     return hashes.SHA256()
 
 
