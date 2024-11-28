@@ -72,7 +72,7 @@ class NodemanServer(FastAPI):
             with open(str(settings.provisioner_private_key)) as fp:
                 provisioner_jwk = JWK.from_json(fp.read())
         except OSError as exc:
-            logger.error("Failed to read CA provisioner private key from %s", filename)
+            logger.error("Failed to read CA provisioner private key from %s", settings.provisioner_private_key)
             raise exc
 
         res = StepClient(
