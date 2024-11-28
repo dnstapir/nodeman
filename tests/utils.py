@@ -25,6 +25,7 @@ class TestStepClient:
         builder = builder.not_valid_after(now + one_day)
         builder = builder.serial_number(x509.random_serial_number())
         builder = builder.public_key(ca_private_key.public_key())
+        builder = builder.add_extension(x509.IssuerAlternativeName([x509.DNSName(self.ca_name)]), critical=False)
         builder = builder.add_extension(
             x509.BasicConstraints(ca=True, path_length=None),
             critical=True,
@@ -43,8 +44,8 @@ class TestStepClient:
         builder = builder.public_key(csr.public_key())
         builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(name)]), critical=False)
         builder = builder.add_extension(
-            x509.BasicConstraints(ca=True, path_length=None),
-            critical=False,
+            x509.BasicConstraints(ca=False, path_length=None),
+            critical=True,
         )
         certificate = builder.sign(
             private_key=ca_private_key,
