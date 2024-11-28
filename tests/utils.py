@@ -16,8 +16,9 @@ class TestStepClient:
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> StepSignResponse:
         now = datetime.now(tz=timezone.utc)
         one_day = timedelta(days=1)
-
         ca_private_key = ec.generate_private_key(ec.SECP256R1())
+
+        # build CA certificate
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, self.ca_name)]))
         builder = builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, self.ca_name)]))
@@ -35,6 +36,7 @@ class TestStepClient:
             algorithm=hashes.SHA256(),
         )
 
+        # build client certificate
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]))
         builder = builder.issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, self.ca_name)]))
@@ -51,4 +53,5 @@ class TestStepClient:
             private_key=ca_private_key,
             algorithm=hashes.SHA256(),
         )
+
         return StepSignResponse(cert_chain=[certificate], ca_cert=ca_certificate)
