@@ -11,6 +11,7 @@ class PublicJwk(BaseModel):
     kty: str
     crv: str
     x: str
+    y: str | None = None
 
 
 class NodeInformation(BaseModel):
