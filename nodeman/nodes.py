@@ -13,7 +13,7 @@ from opentelemetry import metrics, trace
 from .const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from .db_models import TapirNode, TapirNodeSecret
 from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
-from .utils import verify_x509_csr
+from .x509 import verify_x509_csr
 
 logger = logging.getLogger(__name__)
 
@@ -194,16 +194,16 @@ async def enroll_node(
     verify_x509_csr(name=name, csr=x509_csr)
 
     try:
-        step_ca_response = request.app.step_client.sign_csr(x509_csr, name)
+        ca_response = request.app.ca_client.sign_csr(x509_csr, name)
     except Exception as exc:
         logger.error("Failed to processes CSR for %s", name)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
 
     x509_certificate = "".join(
-        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in step_ca_response.cert_chain]
+        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
     )
-    x509_ca_certificate = step_ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
-    x509_ca_url = request.app.step_client.ca_url
+    x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    x509_ca_url = request.app.ca_client.ca_url
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()

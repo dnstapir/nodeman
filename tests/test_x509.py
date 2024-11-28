@@ -4,7 +4,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from nodeman.utils import verify_x509_csr
+from nodeman.x509 import verify_x509_csr
 
 type PrivateKey = ec.EllipticCurvePrivateKey
 

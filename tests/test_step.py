@@ -6,7 +6,7 @@ from jwcrypto.jwk import JWK
 
 from nodeman.settings import StepSettings
 from nodeman.step import StepClient
-from nodeman.utils import generate_x509_csr, verify_x509_csr
+from nodeman.x509 import generate_x509_csr, verify_x509_csr
 
 
 def test_step_ca() -> None:

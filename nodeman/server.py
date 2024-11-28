@@ -18,6 +18,7 @@ from dnstapir.opentelemetry import configure_opentelemetry
 from . import OPENAPI_METADATA, __verbose_version__
 from .settings import Settings, StepSettings
 from .step import StepClient
+from .x509 import CertificateAuthorityClient
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,8 @@ class NodemanServer(FastAPI):
         else:
             self.logger.warning("Starting without trusted keys")
 
-        self.step_client: StepClient | None
-        self.step_client = self.get_step_client(self.settings.step) if self.settings.step else None
+        self.ca_client: CertificateAuthorityClient | None
+        self.ca_client = self.get_step_client(self.settings.step) if self.settings.step else None
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:

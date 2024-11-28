@@ -1,10 +1,24 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtensionOID, NameOID
-from jwcrypto.jwk import JWK
 
 type PrivateKey = ec.EllipticCurvePrivateKey
+
+
+@dataclass(frozen=True)
+class CertificateInformation:
+    cert_chain: list[x509.Certificate]
+    ca_cert: x509.Certificate
+
+
+class CertificateAuthorityClient(ABC):
+    @abstractmethod
+    def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
+        pass
 
 
 def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequest:
@@ -42,18 +56,3 @@ def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
     ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
     if ext.value.get_values_for_type(x509.DNSName) != [name]:
         raise ValueError("Invalid SubjectAlternativeName")
-
-
-def jwk_to_alg(key: JWK) -> str:
-    match (key.kty, key.get("crv")):
-        case ("RSA", None):
-            return "RS256"
-        case ("EC", "P-256"):
-            return "ES256"
-        case ("EC", "P-384"):
-            return "ES384"
-        case ("OKP", "Ed25519"):
-            return "EdDSA"
-        case ("OKP", "Ed448"):
-            return "EdDSA"
-    raise ValueError

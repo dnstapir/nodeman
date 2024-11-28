@@ -12,10 +12,11 @@ from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
 from nodeman.const import MIME_TYPE_JWK, MIME_TYPE_PEM
+from nodeman.jose import jwk_to_alg
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.utils import generate_x509_csr, jwk_to_alg
-from tests.utils import TestStepClient
+from nodeman.x509 import generate_x509_csr
+from tests.utils import CaTestClient
 
 ADMIN_TEST_NODE_COUNT = 100
 
@@ -25,7 +26,7 @@ Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
 def get_test_client() -> TestClient:
     settings = Settings()
     app = NodemanServer(settings)
-    app.step_client = TestStepClient()
+    app.ca_client = CaTestClient()
     app.connect_mongodb()
     return TestClient(app)
 

@@ -3,7 +3,6 @@ import os
 import tempfile
 import time
 import uuid
-from dataclasses import dataclass
 from urllib.parse import urljoin
 
 import httpx
@@ -12,16 +11,11 @@ from cryptography.hazmat.primitives import hashes, serialization
 from jwcrypto.jwk import JWK
 from jwcrypto.jwt import JWT
 
-from .utils import jwk_to_alg
+from .jose import jwk_to_alg
+from .x509 import CertificateAuthorityClient, CertificateInformation
 
 
-@dataclass(frozen=True)
-class StepSignResponse:
-    cert_chain: list[x509.Certificate]
-    ca_cert: x509.Certificate
-
-
-class StepClient:
+class StepClient(CertificateAuthorityClient):
     def __init__(self, ca_url: str, ca_fingerprint: str, provisioner_name: str, provisioner_jwk: JWK):
         self.ca_url = ca_url
         self.ca_fingerprint = ca_fingerprint
@@ -30,7 +24,7 @@ class StepClient:
         self.ca_bundle_filename = self._get_root_ca_cert()
         self.token_ttl = 300
 
-    def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> StepSignResponse:
+    def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM).decode()
         token = self._get_token(name)
         response = httpx.post(
@@ -40,7 +34,7 @@ class StepClient:
         )
         response.raise_for_status()
         payload = response.json()
-        return StepSignResponse(
+        return CertificateInformation(
             cert_chain=[x509.load_pem_x509_certificate(cert.encode()) for cert in payload["certChain"]],
             ca_cert=x509.load_pem_x509_certificate(payload["ca"].encode()),
         )
