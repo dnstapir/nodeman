@@ -4,7 +4,12 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from nodeman.x509 import verify_x509_csr
+from nodeman.x509 import (
+    CertificateSigningRequestException,
+    SubjectAlternativeNameMismatchError,
+    SubjectCommonNameMismatchError,
+    verify_x509_csr,
+)
 
 type PrivateKey = ec.EllipticCurvePrivateKey
 
@@ -33,23 +38,23 @@ def test_x509_csr_name_correct() -> None:
 
 def test_x509_csr_subject_mismatch() -> None:
     csr = build_csr(subject=NAME_2, san=NAME_1)
-    with pytest.raises(ValueError):
+    with pytest.raises(SubjectCommonNameMismatchError):
         verify_x509_csr(name=NAME_1, csr=csr)
 
 
 def test_x509_csr_san_mismatch() -> None:
     csr = build_csr(subject=NAME_1, san=NAME_2)
-    with pytest.raises(ValueError):
+    with pytest.raises(SubjectAlternativeNameMismatchError):
         verify_x509_csr(name=NAME_1, csr=csr)
 
 
 def test_x509_csr_san_missing() -> None:
     csr = build_csr(subject=NAME_1)
-    with pytest.raises(ValueError):
+    with pytest.raises(CertificateSigningRequestException):
         verify_x509_csr(name=NAME_1, csr=csr)
 
 
 def test_x509_csr_is_ca() -> None:
     csr = build_csr(subject=NAME_1, san=NAME_1, ca=True)
-    with pytest.raises(ValueError):
+    with pytest.raises(CertificateSigningRequestException):
         verify_x509_csr(name=NAME_1, csr=csr)

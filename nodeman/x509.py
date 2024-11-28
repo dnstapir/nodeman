@@ -46,25 +46,44 @@ def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequ
     )
 
 
+class CertificateSigningRequestException(ValueError):
+    pass
+
+
+class SubjectCommonNameMissing(CertificateSigningRequestException):
+    pass
+
+
+class SubjectCommonNameMismatchError(CertificateSigningRequestException):
+    pass
+
+
+class SubjectAlternativeNameMismatchError(CertificateSigningRequestException):
+    pass
+
+
 def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
     """Verify X.509 CSR against name"""
 
     # ensure Subject is correct
     if len(csr.subject) != 1:
-        raise ValueError("Invalid Subject")
+        raise CertificateSigningRequestException("Invalid Subject")
     cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
     if len(cn) == 0:
-        raise ValueError("Missing CommonName")
+        raise SubjectCommonNameMissing("Missing CommonName")
     elif len(cn) > 1:
-        raise ValueError("Multiple CommonName")
+        raise CertificateSigningRequestException(f"Multiple CommonName, got {len(cn)} extensions, expected 1")
     elif cn[0].value != name:
-        raise ValueError("Invalid CommonName")
+        raise SubjectCommonNameMismatchError(f"Invalid CommonName, got {cn[0].value} expected {name}")
 
     # ensure we only have a single extension
-    if len(csr.extensions) != 1:
-        raise ValueError("Multiple extensions")
+    if len(csr.extensions) == 0:
+        raise CertificateSigningRequestException("Missing extensions")
+    elif len(csr.extensions) > 1:
+        raise CertificateSigningRequestException("Multiple extensions")
 
     # ensure SubjectAlternativeName is correct
-    ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
-    if ext.value.get_values_for_type(x509.DNSName) != [name]:
-        raise ValueError("Invalid SubjectAlternativeName")
+    san_ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+    san_value = san_ext.value.get_values_for_type(x509.DNSName)
+    if san_value != [name]:
+        raise SubjectAlternativeNameMismatchError(f"Invalid SubjectAlternativeName, got {san_value} expected {name}")
