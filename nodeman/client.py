@@ -58,8 +58,12 @@ def main() -> None:
         logging.basicConfig(level=logging.INFO)
 
     if args.name is None and args.secret is None:
-        response = httpx.post(urljoin(args.server, "/api/v1/node"))
-        response.raise_for_status()
+        try:
+            response = httpx.post(urljoin(args.server, "/api/v1/node"))
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            logging.error("Failed to create node: %s", str(e))
+            raise SystemExit(1) from exc
         create_response = response.json()
         name = create_response["name"]
         secret = create_response["secret"]
