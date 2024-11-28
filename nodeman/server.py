@@ -42,10 +42,14 @@ class NodemanServer(FastAPI):
             self.logger.info("Configured without OpenTelemetry")
 
         self.trusted_keys = []
-        if self.settings.nodes.trusted_keys:
-            with open(self.settings.nodes.trusted_keys) as fp:
-                keys = json.load(fp)
-                self.trusted_keys = keys.get("keys", [])
+        if filename := self.settings.nodes.trusted_keys:
+            try:
+                with open(filename) as fp:
+                    keys = json.load(fp)
+                    self.trusted_keys = keys.get("keys", [])
+            except OSError as exc:
+                logger.error("Failed to read trusted keys from %s", filename)
+                raise exc
         else:
             self.logger.warning("Starting without trusted keys")
 
@@ -55,13 +59,21 @@ class NodemanServer(FastAPI):
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:
         if filename := settings.ca_fingerprint_file:
-            with open(filename) as fp:
-                ca_fingerprint = fp.read().rstrip()
+            try:
+                with open(filename) as fp:
+                    ca_fingerprint = fp.read().rstrip()
+            except OSError as exc:
+                logger.error("Failed to read CA fingerprint file from %s", filename)
+                raise exc
         else:
             ca_fingerprint = settings.ca_fingerprint
 
-        with open(str(settings.provisioner_private_key)) as fp:
-            provisioner_jwk = JWK.from_json(fp.read())
+        try:
+            with open(str(settings.provisioner_private_key)) as fp:
+                provisioner_jwk = JWK.from_json(fp.read())
+        except OSError as exc:
+            logger.error("Failed to read CA provisioner private key from %s", filename)
+            raise exc
 
         res = StepClient(
             ca_url=str(settings.ca_url),
