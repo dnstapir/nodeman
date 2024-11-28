@@ -25,7 +25,7 @@ class CertificateAuthorityClient(ABC):
         pass
 
 
-def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.SHA256 | hashes.SHA384 | None:
+def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.HashAlgorithm | None:
     if isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
         return None
     if isinstance(key, EllipticCurvePrivateKey) and isinstance(key.curve, ec.SECP384R1):
