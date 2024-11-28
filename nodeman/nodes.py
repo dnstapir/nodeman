@@ -10,6 +10,7 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
 
+from .const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from .db_models import TapirNode, TapirNodeSecret
 from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
 from .utils import verify_x509_csr
@@ -75,11 +76,11 @@ def get_all_nodes() -> NodeCollection:
     responses={
         200: {
             "content": {
-                "application/json": {
+                MIME_TYPE_JWK: {
                     "title": "JWK",
                     "schema": PublicJwk.model_json_schema(),
                 },
-                "application/pem": {"title": "PEM", "schema": {"type": "string"}},
+                MIME_TYPE_PEM: {"title": "PEM", "schema": {"type": "string"}},
             },
         },
         404: {},
@@ -101,11 +102,11 @@ async def get_node_public_key(
     if node is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
-    if "application/pem" in accept:
+    if MIME_TYPE_PEM in accept:
         pem = JWK(**node.public_key).export_to_pem().decode()
-        return Response(content=pem, media_type="application/pem")
+        return Response(content=pem, media_type=MIME_TYPE_PEM)
 
-    return Response(content=json.dumps(node.public_key), media_type="application/json")
+    return Response(content=json.dumps(node.public_key), media_type=MIME_TYPE_JWK)
 
 
 @router.delete(

@@ -11,6 +11,7 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
+from nodeman.const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
 from nodeman.utils import generate_x509_csr, jwk_to_alg
@@ -94,7 +95,7 @@ def test_enroll() -> None:
     assert response.status_code == 200
     _ = JWK.from_json(response.text)
 
-    response = client.get(public_key_url, headers={"Accept": "application/pem"})
+    response = client.get(public_key_url, headers={"Accept": "application/x-pem-file"})
     assert response.status_code == 200
     _ = load_pem_public_key(response.text.encode())
 
@@ -218,8 +219,8 @@ def test_not_found() -> None:
     response = client.post(urljoin(server, f"/api/v1/node/{name}/enroll"))
     assert response.status_code == 404
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": "application/json"})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_JWK})
     assert response.status_code == 404
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": "application/pem"})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_PEM})
     assert response.status_code == 404
