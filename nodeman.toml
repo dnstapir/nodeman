@@ -1,12 +1,15 @@
 [mongodb]
-#server =  "mongodb://localhost/nodes"
-server = "mongomock://localhost/nodes"
+server =  "mongodb://localhost/nodes"
 
-[step_ca]
-server = "http://localhost:9000"
+[step]
+ca_url = "https://localhost:9000"
+#ca_fingerprint = "aabb0c2be794316541a6262aa091f4d40533e8436aaf7bd8e8a5e5e42998bd2a"
+ca_fingerprint_file = "root_ca_fingerprint.txt"
+provisioner_name = "test"
+provisioner_private_key ="provisioner_private.json"
 
-[vault]
-server = "http://localhost:8200"
+#[vault]
+#server = "http://localhost:8200"
 
 [nodes]
 domain = "dev.dnstapir.se"
@@ -16,8 +19,6 @@ mqtt_broker = "mqtts://localhost"
 [nodes.mqtt_topics]
 tem = "configuration/tem"
 pop = "configuration/pop"
-
-
 
 #[otlp]
 #spans_endpoint = "http://localhost:4317"

@@ -3,34 +3,42 @@ import logging
 import uuid
 from urllib.parse import urljoin
 
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
+from pydantic_settings import SettingsConfigDict
 
+from nodeman.const import MIME_TYPE_JWK, MIME_TYPE_PEM
+from nodeman.jose import jwk_to_alg
 from nodeman.server import NodemanServer
-from nodeman.settings import MongoDB, Settings
-from nodeman.utils import generate_x509_csr, jwk_to_alg
+from nodeman.settings import Settings
+from nodeman.x509 import generate_x509_csr
+from tests.utils import CaTestClient
 
 ADMIN_TEST_NODE_COUNT = 100
 
+Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
+
 
 def get_test_client() -> TestClient:
-    settings = Settings(MongoDB(server="mongomock://localhost/test"))
+    settings = Settings()
     app = NodemanServer(settings)
+    app.ca_client = CaTestClient()
     app.connect_mongodb()
     return TestClient(app)
 
 
-def test_enroll() -> None:
+def _test_enroll(data_key, x509_key) -> None:
     client = get_test_client()
     server = ""
 
-    kty = "OKP"
-    crv = "Ed25519"
-
     logging.basicConfig(level=logging.DEBUG)
+    logging.debug("Testing enrollment")
 
     response = client.post(urljoin(server, "/api/v1/node"))
     assert response.status_code == 201
@@ -50,11 +58,9 @@ def test_enroll() -> None:
     hmac_key = JWK(kty="oct", k=secret)
     hmac_alg = "HS256"
 
-    data_key = JWK.generate(kty=kty, crv=crv)
     data_alg = jwk_to_alg(data_key)
 
-    x509_key = ec.generate_private_key(ec.SECP256R1())
-    x509_csr = generate_x509_csr(key=x509_key, name=name).decode()
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
 
@@ -87,7 +93,7 @@ def test_enroll() -> None:
     assert response.status_code == 200
     _ = JWK.from_json(response.text)
 
-    response = client.get(public_key_url, headers={"Accept": "application/pem"})
+    response = client.get(public_key_url, headers={"Accept": "application/x-pem-file"})
     assert response.status_code == 200
     _ = load_pem_public_key(response.text.encode())
 
@@ -96,6 +102,42 @@ def test_enroll() -> None:
 
     response = client.delete(node_url)
     assert response.status_code == 404
+
+
+def test_enroll_p256() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-256")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_p384() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-384")
+    x509_key = ec.generate_private_key(ec.SECP384R1())
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_ed25519_p256() -> None:
+    data_key = JWK.generate(kty="OKP", crv="Ed25519")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_ed25519() -> None:
+    data_key = JWK.generate(kty="OKP", crv="Ed25519")
+    x509_key = Ed25519PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_ed448() -> None:
+    data_key = JWK.generate(kty="OKP", crv="Ed448")
+    x509_key = Ed448PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_rsa() -> None:
+    data_key = JWK.generate(kty="RSA", size=2048)
+    x509_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
 def test_enroll_bad_hmac_signature() -> None:
@@ -119,7 +161,7 @@ def test_enroll_bad_hmac_signature() -> None:
     data_alg = jwk_to_alg(data_key)
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
-    x509_csr = generate_x509_csr(key=x509_key, name=name).decode()
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
 
@@ -159,7 +201,7 @@ def test_enroll_bad_data_signature() -> None:
     data_alg = jwk_to_alg(data_key)
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
-    x509_csr = generate_x509_csr(key=x509_key, name=name).decode()
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
 
@@ -211,8 +253,8 @@ def test_not_found() -> None:
     response = client.post(urljoin(server, f"/api/v1/node/{name}/enroll"))
     assert response.status_code == 404
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": "application/json"})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_JWK})
     assert response.status_code == 404
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": "application/pem"})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_PEM})
     assert response.status_code == 404

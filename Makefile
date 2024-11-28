@@ -5,8 +5,17 @@ OPENAPI=		nodeman-api.yaml
 
 DEPENDS=		$(BUILDINFO)
 
+CA_CERT=		root_ca.crt
+CA_URL=			https://localhost:9000
+CA_PROVISIONER_NAME=	test
+CA_PROVISIONER_FILES=	provisioner_private.json provisioner_public.json
+CA_FINGERPRINT=		root_ca_fingerprint.txt
+CA_PASSWORD=		root_ca_password.txt
 
-all: $(DEPENDS) $(PUBLIC_KEYS)
+STEP_CA_FILES=		$(CA_CERT) $(CA_PASSWORD) $(CA_FINGERPRINT) $(CA_PROVISIONER_FILES)
+CLIENT_FILES=		data.json tls.crt tls.key tls-ca.crt
+
+all: $(DEPENDS)
 
 $(BUILDINFO):
 	printf "__commit__ = \"`git rev-parse HEAD`\"\n__timestamp__ = \"`date +'%Y-%m-%d %H:%M:%S %Z'`\"\n" > $(BUILDINFO)
@@ -22,8 +31,38 @@ container: $(DEPENDS)
 push-container:
 	docker push $(CONTAINER)
 
-server: $(DEPENDS) $($(PUBLIC_KEYS))
+server: $(DEPENDS)
 	poetry run nodeman_server --host 127.0.0.1 --port 8080 --debug
+
+test-client:
+	poetry run nodeman_client
+	step certificate inspect tls.crt
+	step certificate inspect tls-ca.crt
+	step crypto jwk public < data.json
+
+step:
+	docker compose exec step cat /home/step/certs/root_ca.crt > $(CA_CERT)
+	docker compose exec step cat secrets/password > $(CA_PASSWORD)
+	docker compose exec step step certificate fingerprint /home/step/certs/root_ca.crt > $(CA_FINGERPRINT)
+	step crypto jwk create \
+		provisioner_public.json \
+		provisioner_private.json \
+		--kty EC --crv P-256 --insecure --no-password --force
+	step ca provisioner add $(CA_PROVISIONER_NAME) --type JWK \
+		--ca-url $(CA_URL) --root $(CA_CERT) \
+		--public-key provisioner_public.json \
+		--admin-provisioner admin \
+		--admin-subject step \
+		--admin-password-file root_ca_password.txt
+	step ca provisioner list --ca-url $(CA_URL) --root $(CA_CERT)
+
+clean-step:
+	-step ca provisioner remove $(CA_PROVISIONER_NAME)  \
+		--ca-url $(CA_URL) --root $(CA_CERT) \
+		--admin-provisioner admin \
+		--admin-subject step \
+		--admin-password-file root_ca_password.txt
+	step ca provisioner list --ca-url $(CA_URL) --root $(CA_CERT)
 
 test: $(DEPENDS)
 	poetry run pytest --ruff --ruff-format
@@ -40,7 +79,7 @@ reformat:
 	poetry run ruff format .
 
 clean:
-	rm -f $(PUBLIC_KEYS) $(PRIVATE_KEYS)
+	rm -f $(STEP_CA_FILES) $(CLIENT_FILES)
 	rm -f $(BUILDINFO) $(OPENAPI)
 
 realclean: clean
