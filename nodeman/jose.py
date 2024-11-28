@@ -13,4 +13,4 @@ def jwk_to_alg(key: JWK) -> str:
             return "EdDSA"
         case ("OKP", "Ed448"):
             return "EdDSA"
-    raise ValueError
+    raise ValueError(f"Unsupported key type: {key.kty}" + (f" with curve: {key.get('crv')}" if key.get("crv") else ""))
