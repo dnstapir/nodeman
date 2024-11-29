@@ -1,6 +1,8 @@
-from typing import Annotated
+from contextlib import suppress
+from typing import Annotated, Self
 
-from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, constr
+from argon2 import PasswordHasher
+from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -44,7 +46,18 @@ class NodesSettings(BaseModel):
 
 class User(BaseModel):
     username: Annotated[str, StringConstraints(min_length=2, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")]
-    password: str
+    password_hash: str
+
+    def verify_password(self, password: str) -> bool:
+        ph = PasswordHasher()
+        with suppress(Exception):
+            return ph.verify(self.password_hash, password)
+        return False
+
+    @classmethod
+    def create(cls, username: str, password: str) -> Self:
+        ph = PasswordHasher()
+        return cls(username=username, password_hash=ph.hash(password))
 
 
 class Settings(BaseSettings):

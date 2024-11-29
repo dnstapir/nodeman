@@ -8,7 +8,7 @@ mqtt_broker = "mqtts://localhost"
 
 [[users]]
 username = "username"
-password = "$argon2id$v=19$m=65536,t=3,p=4$2UbbvL5YpSjGyeha++HE5g$o8iGuvAgrl0azPFDK79mCYQT10nqIGyU1XLipGwL4rc"
+password_hash = "$argon2id$v=19$m=65536,t=3,p=4$2UbbvL5YpSjGyeha++HE5g$o8iGuvAgrl0azPFDK79mCYQT10nqIGyU1XLipGwL4rc"
 
 [nodes.mqtt_topics]
 tem = "configuration/tem"

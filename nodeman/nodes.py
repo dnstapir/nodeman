@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
-import argon2
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -26,19 +25,15 @@ router = APIRouter()
 
 security = HTTPBasic()
 
-password_hasher = argon2.PasswordHasher()
-
 
 def get_current_username(
     request: Request,
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
 ):
-    if password_hash := request.app.users.get(credentials.username):
-        print(password_hash)
-        try:
-            password_hasher.verify(hash=password_hash, password=credentials.password)
+    if user := request.app.users.get(credentials.username):
+        if user.verify_password(credentials.password):
             return credentials.username
-        except argon2.exceptions.VerifyMismatchError:
+        else:
             logger.warning("Invalid password for user %s", credentials.username)
     else:
         logger.warning("Unknown user %s", credentials.username)
