@@ -140,7 +140,7 @@ def delete_node(
 @router.post(
     "/api/v1/node/{name}/enroll",
     responses={
-        201: {"model": NodeConfiguration},
+        200: {"model": NodeConfiguration},
     },
     tags=["client"],
 )
@@ -203,7 +203,6 @@ async def enroll_node(
         [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
     )
     x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
-    x509_ca_url = request.app.ca_client.ca_url
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()
@@ -216,5 +215,4 @@ async def enroll_node(
         trusted_keys=request.app.trusted_keys,
         x509_certificate=x509_certificate,
         x509_ca_certificate=x509_ca_certificate,
-        x509_ca_url=x509_ca_url,
     )
