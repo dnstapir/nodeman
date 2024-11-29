@@ -56,6 +56,7 @@ class NodemanServer(FastAPI):
 
         self.ca_client: CertificateAuthorityClient | None
         self.ca_client = self.get_step_client(self.settings.step) if self.settings.step else None
+        self.users = {entry.username: entry.password for entry in settings.users}
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:

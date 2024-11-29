@@ -3,9 +3,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
+import argon2
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from fastapi import APIRouter, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
@@ -22,6 +24,31 @@ meter = metrics.get_meter("nodeman.meter")
 
 router = APIRouter()
 
+security = HTTPBasic()
+
+password_hasher = argon2.PasswordHasher()
+
+
+def get_current_username(
+    request: Request,
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+):
+    if password_hash := request.app.users.get(credentials.username):
+        print(password_hash)
+        try:
+            password_hasher.verify(hash=password_hash, password=credentials.password)
+            return credentials.username
+        except argon2.exceptions.VerifyMismatchError:
+            logger.warning("Invalid password for user %s", credentials.username)
+    else:
+        logger.warning("Unknown user %s", credentials.username)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username or password",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+
 
 @router.post(
     "/api/v1/node",
@@ -31,7 +58,9 @@ router = APIRouter()
     },
     tags=["backend"],
 )
-async def create_node(request: Request) -> NodeBootstrapInformation:
+async def create_node(
+    request: Request, username: Annotated[str, Depends(get_current_username)]
+) -> NodeBootstrapInformation:
     secret = JWK.generate(kty="oct", size=256).k
     node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
     logging.debug("Created node %s", node.name)
@@ -47,7 +76,7 @@ async def create_node(request: Request) -> NodeBootstrapInformation:
     },
     tags=["backend"],
 )
-def get_node_information(name: str) -> NodeInformation:
+def get_node_information(name: str, username: Annotated[str, Depends(get_current_username)]) -> NodeInformation:
     """Get node information"""
 
     node: TapirNode | None
@@ -65,7 +94,7 @@ def get_node_information(name: str) -> NodeInformation:
     },
     tags=["backend"],
 )
-def get_all_nodes() -> NodeCollection:
+def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> NodeCollection:
     """Get all nodes"""
 
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(deleted=None)])

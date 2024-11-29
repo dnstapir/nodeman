@@ -42,11 +42,17 @@ class NodesSettings(BaseModel):
     mqtt_topics: dict[str, str] = Field(default={})
 
 
+class User(BaseModel):
+    username: str
+    password: str
+
+
 class Settings(BaseSettings):
     mongodb: MongoDB = Field(default=MongoDB())
     step: StepSettings | None = None
     # vault: VaultSettings = Field(default=VaultSettings())
     otlp: OtlpSettings | None = None
+    users: list[User] = Field(default=[])
 
     nodes: NodesSettings = Field(default=NodesSettings())
 
