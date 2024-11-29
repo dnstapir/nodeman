@@ -2,7 +2,7 @@ from contextlib import suppress
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
-from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints
+from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, model_validator
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     nodes: NodesSettings = Field(default=NodesSettings())
 
     model_config = SettingsConfigDict(toml_file="nodeman.toml")
+
+    @model_validator(mode="after")
+    def validate_unique_usernames(self) -> Self:
+        username_set = set()
+        for user in self.users:
+            if user.username in username_set:
+                raise ValueError(f"Duplicate username found: {user.username}")
+            username_set.add(user.username)
+        return self
 
     @classmethod
     def settings_customise_sources(
