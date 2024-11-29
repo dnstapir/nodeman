@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, UrlConstraints
+from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, constr
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -43,7 +43,7 @@ class NodesSettings(BaseModel):
 
 
 class User(BaseModel):
-    username: str
+    username: Annotated[str, StringConstraints(min_length=2, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")]
     password: str
 
 
