@@ -53,7 +53,7 @@ def get_current_username(
     },
     tags=["backend"],
 )
-async def create_named_node(
+async def create_node(
     request: Request, username: Annotated[str, Depends(get_current_username)], name: str | None = None
 ) -> NodeBootstrapInformation:
     secret = JWK.generate(kty="oct", size=256).k
