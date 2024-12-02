@@ -28,8 +28,8 @@ tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
 nodes_created = meter.create_counter("nodes.created", description="The number of nodes created")
-nodes_enrolled = meter.create_counter("nodes.created", description="The number of nodes certificate enrolled")
-nodes_renewed = meter.create_counter("nodes.created", description="The number of node certificate renewed")
+nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes certificate enrolled")
+nodes_renewed = meter.create_counter("nodes.renewed", description="The number of node certificate renewed")
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
 )
