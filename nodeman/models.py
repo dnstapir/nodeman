@@ -40,17 +40,15 @@ class NodeCollection(BaseModel):
     nodes: list[NodeInformation] = Field(title="Nodes")
 
 
-class NodeConfiguration(BaseModel):
-    name: str = Field(title="Node name", examples=["node.example.com"])
-    mqtt_broker: MqttUrl = Field(title="MQTT Broker", examples=["mqtts://broker.example.com"])
-    mqtt_topics: dict[str, str] = Field(
-        title="MQTT Topics",
-        default={},
-        examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
-    )
-    trusted_keys: list[PublicJwk] = Field(title="Trusted keys")
+class NodeBootstrapInformation(BaseModel):
+    name: str = Field(title="Node name")
+    secret: str = Field(title="Enrollment secret")
+
+
+class NodeCertificate(BaseModel):
     x509_certificate: str = Field(title="X.509 Client Certificate Bundle")
     x509_ca_certificate: str = Field(title="X.509 CA Certificate Bundle")
+    x509_certificate_serial_number: int | None = Field(default=None, exclude=True)
 
     @field_validator("x509_certificate", "x509_ca_certificate")
     @classmethod
@@ -59,6 +57,12 @@ class NodeConfiguration(BaseModel):
         return v
 
 
-class NodeBootstrapInformation(BaseModel):
-    name: str = Field(title="Node name")
-    secret: str = Field(title="Enrollment secret")
+class NodeConfiguration(NodeCertificate):
+    name: str = Field(title="Node name", examples=["node.example.com"])
+    mqtt_broker: MqttUrl = Field(title="MQTT Broker", examples=["mqtts://broker.example.com"])
+    mqtt_topics: dict[str, str] = Field(
+        title="MQTT Topics",
+        default={},
+        examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
+    )
+    trusted_keys: list[PublicJwk] = Field(title="Trusted keys")

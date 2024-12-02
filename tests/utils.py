@@ -4,8 +4,23 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
+from jwcrypto.common import base64url_decode
+from jwcrypto.jwk import JWK
 
 from nodeman.x509 import CertificateAuthorityClient, CertificateInformation
+
+
+def rekey(key: JWK) -> JWK:
+    """Generate similar key"""
+    params = {param: key.get(param) for param in ["kty", "crv"] if param in key}
+    match key.get("kty"):
+        case "RSA":
+            params["size"] = key._get_public_key().key_size
+        case "oct":
+            params["size"] = len(base64url_decode(key.k)) * 8
+        case _:
+            pass
+    return JWK.generate(**params)
 
 
 class CaTestClient(CertificateAuthorityClient):
