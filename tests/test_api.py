@@ -3,6 +3,7 @@ import logging
 import uuid
 from urllib.parse import urljoin
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
@@ -23,18 +24,24 @@ from tests.utils import CaTestClient
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")
 
+PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
+
 Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
+settings = Settings()
 
 
 def get_test_client() -> TestClient:
-    settings = Settings()
     app = NodemanServer(settings)
     app.ca_client = CaTestClient()
     app.connect_mongodb()
     return TestClient(app)
 
 
-def _test_enroll(data_key, x509_key) -> None:
+class FailedToCreateNode(RuntimeError):
+    pass
+
+
+def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None = None) -> None:
     client = get_test_client()
 
     admin_client = get_test_client()
@@ -45,11 +52,17 @@ def _test_enroll(data_key, x509_key) -> None:
     logging.basicConfig(level=logging.DEBUG)
     logging.debug("Testing enrollment")
 
-    response = admin_client.post(urljoin(server, "/api/v1/node"))
+    response = admin_client.post(
+        urljoin(server, "/api/v1/node"), params={"name": requested_name} if requested_name else None
+    )
+    if response.status_code != 201:
+        raise FailedToCreateNode
     assert response.status_code == 201
     create_response = response.json()
     name = create_response["name"]
     secret = create_response["secret"]
+    if requested_name:
+        assert name == requested_name
     logging.info("Got name=%s secret=%s", name, secret)
 
     node_url = urljoin(server, f"/api/v1/node/{name}")
@@ -143,6 +156,21 @@ def test_enroll_rsa() -> None:
     data_key = JWK.generate(kty="RSA", size=2048)
     x509_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_p256_named_node() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-256")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+    requested_name = ".".join(["xyzzy", settings.nodes.domain])
+    _test_enroll(data_key=data_key, x509_key=x509_key, requested_name=requested_name)
+
+
+def test_enroll_p256_bad_named_node() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-256")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+    requested_name = "xyzzy.example.com"
+    with pytest.raises(FailedToCreateNode):
+        _test_enroll(data_key=data_key, x509_key=x509_key, requested_name=requested_name)
 
 
 def test_enroll_bad_hmac_signature() -> None:

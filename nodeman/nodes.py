@@ -54,10 +54,18 @@ def get_current_username(
     tags=["backend"],
 )
 async def create_node(
-    request: Request, username: Annotated[str, Depends(get_current_username)]
+    request: Request, username: Annotated[str, Depends(get_current_username)], name: str | None = None
 ) -> NodeBootstrapInformation:
     secret = JWK.generate(kty="oct", size=256).k
-    node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
+    domain = request.app.settings.nodes.domain
+    if name is None:
+        node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
+    elif name.endswith(f".{domain}"):
+        logging.debug("Explicit node name %s requested", name)
+        node = TapirNode(name=name, domain=domain).save()
+    else:
+        logging.warning("Explicit node name %s not acceptable", name)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
     logging.debug("Created node %s", node.name)
     node_secret = TapirNodeSecret(name=node.name, secret=secret).save()
     return NodeBootstrapInformation(name=node.name, secret=node_secret.secret)
