@@ -10,7 +10,7 @@ from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
 
 from .authn import get_current_username
-from .const import MIME_TYPE_JWK, MIME_TYPE_PEM
+from .const import PublicKeyFormat
 from .db_models import TapirNode, TapirNodeSecret
 from .models import (
     NodeBootstrapInformation,
@@ -110,11 +110,11 @@ def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> No
     responses={
         status.HTTP_200_OK: {
             "content": {
-                MIME_TYPE_JWK: {
+                PublicKeyFormat.JWK: {
                     "title": "JWK",
                     "schema": PublicJwk.model_json_schema(),
                 },
-                MIME_TYPE_PEM: {"title": "PEM", "schema": {"type": "string"}},
+                PublicKeyFormat.PEM: {"title": "PEM", "schema": {"type": "string"}},
             },
         },
         status.HTTP_404_NOT_FOUND: {},
@@ -136,18 +136,19 @@ async def get_node_public_key(
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
 
-    if MIME_TYPE_PEM in accept:
-        with tracer.start_as_current_span("get_public_key_pem"):
-            media_type = MIME_TYPE_PEM
-            content = JWK(**node.public_key).export_to_pem().decode()
-            nodes_public_key_queries.add(1, {media_type: media_type})
-            return Response(content=content, media_type=media_type)
+    try:
+        match media_type := PublicKeyFormat.from_accept(accept):
+            case PublicKeyFormat.PEM:
+                with tracer.start_as_current_span("get_public_key_pem"):
+                    content = JWK(**node.public_key).export_to_pem().decode()
+            case PublicKeyFormat.JWK:
+                with tracer.start_as_current_span("get_public_key_jwk"):
+                    content = json.dumps(node.public_key)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
 
-    with tracer.start_as_current_span("get_public_key_jwk"):
-        media_type = MIME_TYPE_JWK
-        content = json.dumps(node.public_key)
-        nodes_public_key_queries.add(1, {media_type: media_type})
-        return Response(content=content, media_type=media_type)
+    nodes_public_key_queries.add(1, {"media_type": str(media_type)})
+    return Response(content=content, media_type=media_type)
 
 
 @router.delete(
