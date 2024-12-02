@@ -1,16 +1,22 @@
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509.oid import ExtensionOID, NameOID
+from fastapi import HTTPException, Request, status
+
+from .models import NodeCertificate
 
 type PrivateKey = RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -87,3 +93,34 @@ def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
     san_value = san_ext.value.get_values_for_type(x509.DNSName)
     if san_value != [name]:
         raise SubjectAlternativeNameMismatchError(f"Invalid SubjectAlternativeName, got {san_value} expected {name}")
+
+
+def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:
+    """Verify CSR and issue certificate"""
+
+    verify_x509_csr(name=name, csr=csr)
+
+    try:
+        ca_response = request.app.ca_client.sign_csr(csr, name)
+    except Exception as exc:
+        logger.error("Failed to process CSR for %s", name)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
+
+    x509_certificate = "".join(
+        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
+    )
+    x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    x509_certificate_serial_number = ca_response.cert_chain[0].serial_number
+
+    logger.info(
+        "Issued certificate for name=%s serial=%d",
+        name,
+        x509_certificate_serial_number,
+        extra={"nodename": name, "x509_certificate_serial_number": x509_certificate_serial_number},
+    )
+
+    return NodeCertificate(
+        x509_certificate=x509_certificate,
+        x509_ca_certificate=x509_ca_certificate,
+        x509_certificate_serial_number=x509_certificate_serial_number,
+    )
