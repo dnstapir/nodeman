@@ -58,6 +58,7 @@ async def create_node(
 ) -> NodeBootstrapInformation:
     secret = JWK.generate(kty="oct", size=256).k
     domain = request.app.settings.nodes.domain
+
     if name is None:
         node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
     elif name.endswith(f".{domain}"):
@@ -66,8 +67,10 @@ async def create_node(
     else:
         logging.warning("Explicit node name %s not acceptable", name)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
-    logging.debug("Created node %s", node.name)
+
     node_secret = TapirNodeSecret(name=node.name, secret=secret).save()
+
+    logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
     return NodeBootstrapInformation(name=node.name, secret=node_secret.secret)
 
 
@@ -86,6 +89,8 @@ def get_node_information(name: str, username: Annotated[str, Depends(get_current
     node = TapirNode.objects(name=name, deleted=None).first()
     if node is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    logging.info("%s queried for node %s", username, node.name, extra={"username": username, "nodename": name})
     return NodeInformation.from_db_model(node)
 
 
@@ -99,7 +104,7 @@ def get_node_information(name: str, username: Annotated[str, Depends(get_current
 )
 def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> NodeCollection:
     """Get all nodes"""
-
+    logging.info("%s queried for all nodes", username, extra={"username": username})
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(deleted=None)])
 
 
@@ -149,10 +154,7 @@ async def get_node_public_key(
     },
     tags=["backend"],
 )
-def delete_node(
-    name: str,
-    request: Request,
-) -> Response:
+def delete_node(name: str, username: Annotated[str, Depends(get_current_username)]) -> Response:
     """Delete node"""
 
     node: TapirNode | None
@@ -166,6 +168,7 @@ def delete_node(
     if node_secret := TapirNodeSecret.objects(name=name).first():
         node_secret.delete()
 
+    logging.info("%s deleted node %s", username, node.name, extra={"username": username, "nodename": node.name})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
