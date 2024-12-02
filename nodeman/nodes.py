@@ -41,7 +41,7 @@ def find_node(name: str) -> TapirNode:
     """Find node, raise exception if not found"""
     if node := TapirNode.objects(name=name, deleted=None).first():
         return node
-    logging.info("Node %s not found", name, extra={"nodename": name})
+    logging.debug("Node %s not found", name, extra={"nodename": name})
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
