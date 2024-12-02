@@ -60,9 +60,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = admin_client.post(
         urljoin(server, "/api/v1/node"), params={"name": requested_name} if requested_name else None
     )
-    if response.status_code != 201:
+    if response.status_code != status.HTTP_201_CREATED:
         raise FailedToCreateNode
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
     secret = create_response["secret"]
@@ -76,7 +76,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     # Get node information
 
     response = admin_client.get(node_url)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     node_information = response.json()
     assert node_information["name"] == name
     assert node_information["activated"] is None
@@ -101,7 +101,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     node_enroll_url = f"{node_url}/enroll"
 
     response = client.post(node_enroll_url, json=enrollment_request)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     enrollment_response = response.json()
     print(json.dumps(enrollment_response, indent=4))
@@ -112,13 +112,13 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     # Enroll created node again (should fail)
 
     response = client.post(node_enroll_url, json=enrollment_request)
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     ######################
     # Get node information
 
     response = admin_client.get(node_url)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     node_information = response.json()
     print(json.dumps(node_information, indent=4))
     assert node_information["name"] == name
@@ -130,15 +130,15 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     public_key_url = f"{node_url}/public_key"
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     _ = JWK.from_json(response.text)
 
     response = client.get(public_key_url, headers={"Accept": "application/jwk+json"})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     _ = JWK.from_json(response.text)
 
     response = client.get(public_key_url, headers={"Accept": "application/x-pem-file"})
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     _ = load_pem_public_key(response.text.encode())
 
     response = client.get(public_key_url, headers={"Accept": "text/html"})
@@ -168,7 +168,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     renew_request = jws.serialize()
 
     response = client.post(f"{node_url}/renew", json=renew_request)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     renew_response = response.json()
     print(json.dumps(renew_response, indent=4))
@@ -180,10 +180,10 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     # Clean up
 
     response = admin_client.delete(node_url)
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
     response = admin_client.delete(node_url)
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_enroll_p256() -> None:
@@ -247,7 +247,7 @@ def test_enroll_bad_hmac_signature() -> None:
     logging.basicConfig(level=logging.DEBUG)
 
     response = client.post(urljoin(server, "/api/v1/node"), auth=BACKEND_CREDENTIALS)
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
 
@@ -269,10 +269,10 @@ def test_enroll_bad_hmac_signature() -> None:
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     response = client.delete(urljoin(server, f"/api/v1/node/{name}"), auth=BACKEND_CREDENTIALS)
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 def test_enroll_bad_data_signature() -> None:
@@ -289,7 +289,7 @@ def test_enroll_bad_data_signature() -> None:
     logging.basicConfig(level=logging.DEBUG)
 
     response = admin_client.post(urljoin(server, "/api/v1/node"))
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
     secret = create_response["secret"]
@@ -313,10 +313,10 @@ def test_enroll_bad_data_signature() -> None:
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     response = admin_client.delete(urljoin(server, f"/api/v1/node/{name}"))
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 def test_admin() -> None:
@@ -327,10 +327,10 @@ def test_admin() -> None:
 
     for _ in range(ADMIN_TEST_NODE_COUNT):
         response = client.post(urljoin(server, "/api/v1/node"))
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
     response = client.get(urljoin(server, "/api/v1/nodes"))
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     node_collection = response.json()
     assert len(node_collection["nodes"]) >= ADMIN_TEST_NODE_COUNT
@@ -342,7 +342,7 @@ def test_admin() -> None:
     for node in node_collection["nodes"]:
         name = node["name"]
         response = client.delete(f"{server}/api/v1/node/{name}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 def test_backend_authentication() -> None:
@@ -351,19 +351,19 @@ def test_backend_authentication() -> None:
 
     # correct password
     response = client.get(urljoin(server, "/api/v1/nodes"), auth=BACKEND_CREDENTIALS)
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     # no password
     response = client.get(urljoin(server, "/api/v1/nodes"))
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     # invalid user
     response = client.get(urljoin(server, "/api/v1/nodes"), auth=("invalid", ""))
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     # wrong password for existing user
     response = client.get(urljoin(server, "/api/v1/nodes"), auth=(BACKEND_CREDENTIALS[0], "wrong"))
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_not_found() -> None:
@@ -373,13 +373,13 @@ def test_not_found() -> None:
     name = str(uuid.uuid4())
 
     response = client.get(urljoin(server, f"/api/v1/node/{name}"))
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
     response = client.post(urljoin(server, f"/api/v1/node/{name}/enroll"))
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
     response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_JWK})
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
     response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_PEM})
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
