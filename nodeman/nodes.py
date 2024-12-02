@@ -232,7 +232,7 @@ async def enroll_node(
         except InvalidJWSSignature as exc:
             logger.warning("Invalid proof-of-possession signature from %s", name, extra={"nodename": name})
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
-        node.public_key = public_key.export(as_dict=True)
+        node.public_key = public_key.export(as_dict=True, private_key=False)
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
