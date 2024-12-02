@@ -10,7 +10,6 @@ from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
 
 from .authn import get_current_username
-from .const import PublicKeyFormat
 from .db_models import TapirNode, TapirNodeSecret
 from .models import (
     NodeBootstrapInformation,
@@ -19,6 +18,7 @@ from .models import (
     NodeConfiguration,
     NodeInformation,
     PublicJwk,
+    PublicKeyFormat,
 )
 from .x509 import process_csr_request
 

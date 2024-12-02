@@ -16,8 +16,8 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
-from nodeman.const import PublicKeyFormat
 from nodeman.jose import jwk_to_alg
+from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
 from nodeman.x509 import generate_x509_csr
