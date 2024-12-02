@@ -21,7 +21,7 @@ from nodeman.jose import jwk_to_alg
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
 from nodeman.x509 import generate_x509_csr
-from tests.utils import CaTestClient
+from tests.utils import CaTestClient, rekey
 
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")
@@ -37,15 +37,6 @@ def get_test_client() -> TestClient:
     app.ca_client = CaTestClient()
     app.connect_mongodb()
     return TestClient(app)
-
-
-def regenerate(key: JWK) -> JWK:
-    """Generate similar key"""
-    params = {}
-    for param in ["kty", "crv", "size"]:
-        if param in key:
-            params[param] = key.get(param)
-    return JWK.generate(**params)
 
 
 class FailedToCreateNode(RuntimeError):
@@ -153,7 +144,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     payload = {"x509_csr": x509_csr}
 
     jws = JWS(payload=json.dumps(payload))
-    jws.add_signature(key=regenerate(data_key), alg=data_alg, protected={"alg": data_alg})
+    jws.add_signature(key=rekey(data_key), alg=data_alg, protected={"alg": data_alg})
     renew_request = jws.serialize()
 
     response = client.post(f"{node_url}/renew", json=renew_request)

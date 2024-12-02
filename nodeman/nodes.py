@@ -60,7 +60,7 @@ def process_csr(csr: x509.CertificateSigningRequest, name: str, request: Request
     try:
         ca_response = request.app.ca_client.sign_csr(csr, name)
     except Exception as exc:
-        logger.error("Failed to processes CSR for %s", name)
+        logger.error("Failed to process CSR for %s", name)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
 
     x509_certificate = "".join(
@@ -70,7 +70,7 @@ def process_csr(csr: x509.CertificateSigningRequest, name: str, request: Request
     x509_certificate_serial_number = ca_response.cert_chain[0].serial_number
 
     logger.info(
-        "Issuer certificate for name=%s serial=%d",
+        "Issued certificate for name=%s serial=%d",
         name,
         x509_certificate_serial_number,
         extra={"nodename": name, "x509_certificate_serial_number": x509_certificate_serial_number},
@@ -284,7 +284,7 @@ async def enroll_node(
 @router.post(
     "/api/v1/node/{name}/renew",
     responses={
-        200: {"model": NodeConfiguration},
+        200: {"model": NodeCertificate},
     },
     tags=["client"],
 )
