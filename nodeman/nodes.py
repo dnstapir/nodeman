@@ -13,7 +13,14 @@ from opentelemetry import metrics, trace
 
 from .const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from .db_models import TapirNode, TapirNodeSecret
-from .models import NodeBootstrapInformation, NodeCollection, NodeConfiguration, NodeInformation, PublicJwk
+from .models import (
+    NodeBootstrapInformation,
+    NodeCertificate,
+    NodeCollection,
+    NodeConfiguration,
+    NodeInformation,
+    PublicJwk,
+)
 from .x509 import verify_x509_csr
 
 logger = logging.getLogger(__name__)
@@ -42,6 +49,37 @@ def get_current_username(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Incorrect username or password",
         headers={"WWW-Authenticate": "Basic"},
+    )
+
+
+def process_csr(csr: x509.CertificateSigningRequest, name: str, request: Request) -> NodeCertificate:
+    """Verify CSR and issuer certificate"""
+
+    verify_x509_csr(name=name, csr=csr)
+
+    try:
+        ca_response = request.app.ca_client.sign_csr(csr, name)
+    except Exception as exc:
+        logger.error("Failed to processes CSR for %s", name)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
+
+    x509_certificate = "".join(
+        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
+    )
+    x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    x509_certificate_serial_number = ca_response.cert_chain[0].serial_number
+
+    logger.info(
+        "Issuer certificate for name=%s serial=%d",
+        name,
+        x509_certificate_serial_number,
+        extra={"nodename": name, "x509_certificate_serial_number": x509_certificate_serial_number},
+    )
+
+    return NodeCertificate(
+        x509_certificate=x509_certificate,
+        x509_ca_certificate=x509_ca_certificate,
+        x509_certificate_serial_number=x509_certificate_serial_number,
     )
 
 
@@ -224,20 +262,9 @@ async def enroll_node(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
     node.public_key = public_key.export(as_dict=True)
 
-    # Verify X.509 CSR
+    # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
-    verify_x509_csr(name=name, csr=x509_csr)
-
-    try:
-        ca_response = request.app.ca_client.sign_csr(x509_csr, name)
-    except Exception as exc:
-        logger.error("Failed to processes CSR for %s", name)
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
-
-    x509_certificate = "".join(
-        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
-    )
-    x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    node_certificate = process_csr(csr=x509_csr, name=name, request=request)
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()
@@ -248,6 +275,48 @@ async def enroll_node(
         mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
         trusted_keys=request.app.trusted_keys,
-        x509_certificate=x509_certificate,
-        x509_ca_certificate=x509_ca_certificate,
+        x509_certificate=node_certificate.x509_certificate,
+        x509_ca_certificate=node_certificate.x509_ca_certificate,
+        x509_certificate_serial_number=node_certificate.x509_certificate_serial_number,
     )
+
+
+@router.post(
+    "/api/v1/node/{name}/renew",
+    responses={
+        200: {"model": NodeConfiguration},
+    },
+    tags=["client"],
+)
+async def renew_node(
+    name: str,
+    request: Request,
+) -> NodeCertificate:
+    """Renew node certificate"""
+
+    node: TapirNode | None
+    node = TapirNode.objects(name=name, deleted=None).first()
+    if node is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    if node.activated is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+
+    body = await request.body()
+
+    jws = JWS()
+    jws.deserialize(json.loads(body.decode()))
+
+    # Verify signature by public key
+    public_key = JWK(**node.public_key)
+    try:
+        jws.verify(key=public_key)
+        logger.debug("Valid proof-of-possession signature from %s", name)
+    except InvalidJWSSignature as exc:
+        logger.warning("Invalid proof-of-possession signature from %s", name)
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+
+    message = json.loads(jws.payload)
+
+    # Verify X.509 CSR and issue certificate
+    x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
+    return process_csr(csr=x509_csr, name=name, request=request)

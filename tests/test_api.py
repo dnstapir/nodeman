@@ -4,11 +4,13 @@ import uuid
 from urllib.parse import urljoin
 
 import pytest
+from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from fastapi import status
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
@@ -37,6 +39,15 @@ def get_test_client() -> TestClient:
     return TestClient(app)
 
 
+def regenerate(key: JWK) -> JWK:
+    """Generate similar key"""
+    params = {}
+    for param in ["kty", "crv", "size"]:
+        if param in key:
+            params[param] = key.get(param)
+    return JWK.generate(**params)
+
+
 class FailedToCreateNode(RuntimeError):
     pass
 
@@ -51,6 +62,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     logging.basicConfig(level=logging.DEBUG)
     logging.debug("Testing enrollment")
+
+    #############
+    # Create node
 
     response = admin_client.post(
         urljoin(server, "/api/v1/node"), params={"name": requested_name} if requested_name else None
@@ -67,11 +81,17 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     node_url = urljoin(server, f"/api/v1/node/{name}")
 
+    #######################
+    # Get node information
+
     response = admin_client.get(node_url)
     assert response.status_code == 200
     node_information = response.json()
     assert node_information["name"] == name
     assert node_information["activated"] is None
+
+    #####################
+    # Enroll created node
 
     hmac_key = JWK(kty="oct", k=secret)
     hmac_alg = "HS256"
@@ -94,9 +114,17 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     enrollment_response = response.json()
     print(json.dumps(enrollment_response, indent=4))
+    certs = x509.load_pem_x509_certificates(enrollment_response["x509_certificate"].encode())
+    certificate_serial_number_1 = certs[0].serial_number
+
+    ##########################################
+    # Enroll created node again (should fail)
 
     response = client.post(node_enroll_url, json=enrollment_request)
     assert response.status_code == 400
+
+    ######################
+    # Get node information
 
     response = admin_client.get(node_url)
     assert response.status_code == 200
@@ -104,6 +132,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     print(json.dumps(node_information, indent=4))
     assert node_information["name"] == name
     assert node_information["activated"] is not None
+
+    #####################
+    # Get node public key
 
     public_key_url = f"{node_url}/public_key"
 
@@ -114,6 +145,41 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = client.get(public_key_url, headers={"Accept": "application/x-pem-file"})
     assert response.status_code == 200
     _ = load_pem_public_key(response.text.encode())
+
+    #########################
+    # Renew certificate (bad)
+
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+    payload = {"x509_csr": x509_csr}
+
+    jws = JWS(payload=json.dumps(payload))
+    jws.add_signature(key=regenerate(data_key), alg=data_alg, protected={"alg": data_alg})
+    renew_request = jws.serialize()
+
+    response = client.post(f"{node_url}/renew", json=renew_request)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    ###################
+    # Renew certificate
+
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+    payload = {"x509_csr": x509_csr}
+
+    jws = JWS(payload=json.dumps(payload))
+    jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+    renew_request = jws.serialize()
+
+    response = client.post(f"{node_url}/renew", json=renew_request)
+    assert response.status_code == 200
+
+    renew_response = response.json()
+    print(json.dumps(renew_response, indent=4))
+    certs = x509.load_pem_x509_certificates(renew_response["x509_certificate"].encode())
+    certificate_serial_number_2 = certs[0].serial_number
+    assert certificate_serial_number_1 != certificate_serial_number_2
+
+    ###########
+    # Clean up
 
     response = admin_client.delete(node_url)
     assert response.status_code == 204
