@@ -1,10 +1,25 @@
 from datetime import datetime
+from enum import StrEnum
+from typing import Self
 
 from cryptography.x509 import load_pem_x509_certificates
 from pydantic import BaseModel, Field, field_validator
 
 from .db_models import TapirNode
 from .settings import MqttUrl
+
+
+class PublicKeyFormat(StrEnum):
+    PEM = "application/x-pem-file"
+    JWK = "application/jwk+json"
+
+    @classmethod
+    def from_accept(cls, accept: str | None) -> Self:
+        if accept is None or cls.JWK in accept or "application/json" in accept:
+            return cls.JWK
+        elif cls.PEM in accept:
+            return cls.PEM
+        raise ValueError(f"Unsupported format. Acceptable formats: {[f.value for f in cls]}")
 
 
 class PublicJwk(BaseModel):

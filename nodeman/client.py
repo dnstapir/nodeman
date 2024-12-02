@@ -9,7 +9,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
-from nodeman.jose import generate_x509_csr, jwk_to_alg
+from nodeman.jose import jwk_to_alg
+from nodeman.x509 import generate_x509_csr
 
 
 def main() -> None:

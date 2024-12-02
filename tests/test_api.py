@@ -16,8 +16,8 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
-from nodeman.const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from nodeman.jose import jwk_to_alg
+from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
 from nodeman.x509 import generate_x509_csr
@@ -133,9 +133,16 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_200_OK
     _ = JWK.from_json(response.text)
 
-    response = client.get(public_key_url, headers={"Accept": "application/x-pem-file"})
+    response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
+    assert response.status_code == status.HTTP_200_OK
+    _ = JWK.from_json(response.text)
+
+    response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.PEM})
     assert response.status_code == status.HTTP_200_OK
     _ = load_pem_public_key(response.text.encode())
+
+    response = client.get(public_key_url, headers={"Accept": "text/html"})
+    assert response.status_code == status.HTTP_406_NOT_ACCEPTABLE
 
     #########################
     # Renew certificate (bad)
@@ -371,8 +378,8 @@ def test_not_found() -> None:
     response = client.post(urljoin(server, f"/api/v1/node/{name}/enroll"))
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_JWK})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": PublicKeyFormat.JWK})
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": MIME_TYPE_PEM})
+    response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": PublicKeyFormat.PEM})
     assert response.status_code == status.HTTP_404_NOT_FOUND

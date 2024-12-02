@@ -21,17 +21,6 @@ services:
       DOCKER_STEPCA_INIT_REMOTE_MANAGEMENT: true
     #volumes:
     #  - step-ca:/home/step
-  vault:
-    image: hashicorp/vault:latest
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: mekmitasdigoat
-    ports:
-      - "8200:8200/tcp"
-    configs:
-      - source: vault.json
-        target: /vault/config/local.json
-    cap_add:
-     - IPC_LOCK
 
   otel-collector:
     image: otel/opentelemetry-collector:latest

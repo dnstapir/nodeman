@@ -10,7 +10,6 @@ from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
 
 from .authn import get_current_username
-from .const import MIME_TYPE_JWK, MIME_TYPE_PEM
 from .db_models import TapirNode, TapirNodeSecret
 from .models import (
     NodeBootstrapInformation,
@@ -19,6 +18,7 @@ from .models import (
     NodeConfiguration,
     NodeInformation,
     PublicJwk,
+    PublicKeyFormat,
 )
 from .x509 import process_csr_request
 
@@ -27,7 +27,22 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
+nodes_created = meter.create_counter("nodes.created", description="The number of nodes created")
+nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes certificate enrolled")
+nodes_renewed = meter.create_counter("nodes.renewed", description="The number of node certificate renewed")
+nodes_public_key_queries = meter.create_counter(
+    "nodes.public_key_queries", description="The number of node public keys queried"
+)
+
 router = APIRouter()
+
+
+def find_node(name: str) -> TapirNode:
+    """Find node, raise exception if not found"""
+    if node := TapirNode.objects(name=name, deleted=None).first():
+        return node
+    logging.debug("Node %s not found", name, extra={"nodename": name})
+    raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
 @router.post(
@@ -47,13 +62,15 @@ async def create_node(
     if name is None:
         node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
     elif name.endswith(f".{domain}"):
-        logging.debug("Explicit node name %s requested", name)
+        logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:
-        logging.warning("Explicit node name %s not acceptable", name)
+        logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
     node_secret = TapirNodeSecret(name=node.name, secret=secret).save()
+
+    nodes_created.add(1, {"creator": username})
 
     logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
     return NodeBootstrapInformation(name=node.name, secret=node_secret.secret)
@@ -70,11 +87,7 @@ async def create_node(
 def get_node_information(name: str, username: Annotated[str, Depends(get_current_username)]) -> NodeInformation:
     """Get node information"""
 
-    node: TapirNode | None
-    node = TapirNode.objects(name=name, deleted=None).first()
-    if node is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
-
+    node = find_node(name)
     logging.info("%s queried for node %s", username, node.name, extra={"username": username, "nodename": name})
     return NodeInformation.from_db_model(node)
 
@@ -97,11 +110,11 @@ def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> No
     responses={
         status.HTTP_200_OK: {
             "content": {
-                MIME_TYPE_JWK: {
+                PublicKeyFormat.JWK: {
                     "title": "JWK",
                     "schema": PublicJwk.model_json_schema(),
                 },
-                MIME_TYPE_PEM: {"title": "PEM", "schema": {"type": "string"}},
+                PublicKeyFormat.PEM: {"title": "PEM", "schema": {"type": "string"}},
             },
         },
         status.HTTP_404_NOT_FOUND: {},
@@ -118,16 +131,24 @@ async def get_node_public_key(
 ) -> Response:
     """Get public key (JWK/PEM) for node"""
 
-    node: TapirNode | None
-    node = TapirNode.objects(name=name, deleted=None).first()
-    if node is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    node = find_node(name)
 
-    if MIME_TYPE_PEM in accept:
-        pem = JWK(**node.public_key).export_to_pem().decode()
-        return Response(content=pem, media_type=MIME_TYPE_PEM)
+    span = trace.get_current_span()
+    span.set_attribute("node.name", name)
 
-    return Response(content=json.dumps(node.public_key), media_type=MIME_TYPE_JWK)
+    try:
+        match media_type := PublicKeyFormat.from_accept(accept):
+            case PublicKeyFormat.PEM:
+                with tracer.start_as_current_span("get_public_key_pem"):
+                    content = JWK(**node.public_key).export_to_pem().decode()
+            case PublicKeyFormat.JWK:
+                with tracer.start_as_current_span("get_public_key_jwk"):
+                    content = json.dumps(node.public_key)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
+
+    nodes_public_key_queries.add(1, {"media_type": str(media_type)})
+    return Response(content=content, media_type=media_type)
 
 
 @router.delete(
@@ -142,9 +163,10 @@ async def get_node_public_key(
 def delete_node(name: str, username: Annotated[str, Depends(get_current_username)]) -> Response:
     """Delete node"""
 
-    node: TapirNode | None
-    node = TapirNode.objects(name=name).first()
-    if node is None or node.deleted:
+    node = find_node(name)
+
+    if node.deleted:
+        logging.info("Node %s deleted", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
     node.deleted = datetime.now(tz=timezone.utc)
@@ -171,52 +193,58 @@ async def enroll_node(
 ) -> NodeConfiguration:
     """Enroll new node"""
 
-    node: TapirNode | None
-    node = TapirNode.objects(name=name, deleted=None).first()
-    if node is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    node = find_node(name)
+
     if node.activated:
+        logging.info("Node %s already enrolled", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node already enrolled")
+
+    span = trace.get_current_span()
+    span.set_attribute("node.name", name)
 
     node_secret: TapirNodeSecret | None
     node_secret = TapirNodeSecret.objects(name=name).first()
     if node_secret is None:
+        logging.info("Node %s enrollment failed", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment failed")
     hmac_key = JWK(kty="oct", k=node_secret.secret)
 
     body = await request.body()
 
-    jws = JWS()
-    jws.deserialize(json.loads(body.decode()))
+    with tracer.start_as_current_span("verify_jws"):
+        jws = JWS()
+        jws.deserialize(json.loads(body.decode()))
 
-    # Verify signature by HMAC key
-    try:
-        jws.verify(key=hmac_key)
-        logger.debug("Valid HMAC signature from %s", name)
-    except InvalidJWSSignature as exc:
-        logger.warning("Invalid HMAC signature from %s", name)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid HMAC signature") from exc
+        # Verify signature by HMAC key
+        try:
+            jws.verify(key=hmac_key)
+            logger.debug("Valid HMAC signature from %s", name, extra={"nodename": name})
+        except InvalidJWSSignature as exc:
+            logger.warning("Invalid HMAC signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid HMAC signature") from exc
 
-    message = json.loads(jws.payload)
+        message = json.loads(jws.payload)
+        public_key = JWK(**message["public_key"])
 
-    public_key = JWK(**message["public_key"])
-
-    # Verify signature by public key
-    try:
-        jws.verify(key=public_key)
-        logger.debug("Valid proof-of-possession signature from %s", name)
-    except InvalidJWSSignature as exc:
-        logger.warning("Invalid proof-of-possession signature from %s", name)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
-    node.public_key = public_key.export(as_dict=True)
+        # Verify signature by public data key
+        try:
+            jws.verify(key=public_key)
+            logger.debug("Valid proof-of-possession signature from %s", name, extra={"nodename": name})
+        except InvalidJWSSignature as exc:
+            logger.warning("Invalid proof-of-possession signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+        node.public_key = public_key.export(as_dict=True, private_key=False)
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
-    node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
+    with tracer.start_as_current_span("issue_certificate"):
+        node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()
     node_secret.delete()
+
+    nodes_enrolled.add(1)
 
     return NodeConfiguration(
         name=name,
@@ -243,29 +271,34 @@ async def renew_node(
 ) -> NodeCertificate:
     """Renew node certificate"""
 
-    node: TapirNode | None
-    node = TapirNode.objects(name=name, deleted=None).first()
-    if node is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
-    if node.activated is None:
+    node = find_node(name)
+
+    if not node.activated:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+
+    span = trace.get_current_span()
+    span.set_attribute("node.name", name)
 
     body = await request.body()
 
-    jws = JWS()
-    jws.deserialize(json.loads(body.decode()))
-
-    # Verify signature by public key
-    public_key = JWK(**node.public_key)
-    try:
-        jws.verify(key=public_key)
-        logger.debug("Valid proof-of-possession signature from %s", name)
-    except InvalidJWSSignature as exc:
-        logger.warning("Invalid proof-of-possession signature from %s", name)
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
-
-    message = json.loads(jws.payload)
+    with tracer.start_as_current_span("verify_jws"):
+        jws = JWS()
+        jws.deserialize(json.loads(body.decode()))
+        public_key = JWK(**node.public_key)
+        # Verify signature by public data key
+        try:
+            jws.verify(key=public_key)
+            logger.debug("Valid proof-of-possession signature from %s", name, extra={"nodename": name})
+        except InvalidJWSSignature as exc:
+            logger.warning("Invalid proof-of-possession signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+        message = json.loads(jws.payload)
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
-    return process_csr_request(csr=x509_csr, name=name, request=request)
+    with tracer.start_as_current_span("issue_certificate"):
+        res = process_csr_request(csr=x509_csr, name=name, request=request)
+
+    nodes_renewed.add(1)
+
+    return res
