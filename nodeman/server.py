@@ -51,12 +51,17 @@ class NodemanServer(FastAPI):
             except OSError as exc:
                 logger.error("Failed to read trusted keys from %s", filename)
                 raise exc
+            self.logger.info("Configured %d trusted keys", len(self.trusted_keys))
         else:
             self.logger.warning("Starting without trusted keys")
 
         self.ca_client: CertificateAuthorityClient | None
         self.ca_client = self.get_step_client(self.settings.step) if self.settings.step else None
+
         self.users = {entry.username: entry for entry in settings.users}
+        for username in self.users:
+            logger.debug("Configured admin user %s", username)
+        logger.info("Configured %d admin users", len(self.users))
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:
