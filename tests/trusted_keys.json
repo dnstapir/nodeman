@@ -1,0 +1,17 @@
+{
+        "keys": [
+                {
+                        "kid": "key1",
+                        "kty": "OKP",
+                        "crv": "Ed25519",
+                        "x": "da6-VSYfELgDOgbRo4SBZbwMF33nDZx843rd7HoMHeQ"
+                },
+                {
+                        "kid": "key2",
+                        "kty": "EC",
+                        "crv": "P-256",
+                        "x": "ZfFPJCRl15KXqeunjb-CTVqYLYaY1Xun6WrSHQbRYws",
+                        "y": "bxf0CaW2ZScHZ0MG8VRftM3su8LfBzCygnKNi6Z7_TQ"
+                }
+        ]
+}
