@@ -250,7 +250,7 @@ async def enroll_node(
         name=name,
         mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
-        trusted_keys=request.app.trusted_keys,
+        trusted_keys=request.app.trusted_keys.get("keys", []),
         x509_certificate=node_certificate.x509_certificate,
         x509_ca_certificate=node_certificate.x509_ca_certificate,
         x509_certificate_serial_number=node_certificate.x509_certificate_serial_number,

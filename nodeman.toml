@@ -13,7 +13,7 @@ provisioner_private_key ="provisioner_private.json"
 
 [nodes]
 domain = "dev.dnstapir.se"
-#trusted_keys = "trusted_keys.json"
+trusted_keys = "tests/trusted_keys.json"
 mqtt_broker = "mqtts://localhost"
 
 [nodes.mqtt_topics]
@@ -24,3 +24,8 @@ pop = "configuration/pop"
 #spans_endpoint = "http://localhost:4317"
 #metrics_endpoint = "http://localhost:4317"
 #insecure = true
+
+
+[[users]]
+username = "username"
+password_hash = "$argon2id$v=19$m=65536,t=3,p=4$2UbbvL5YpSjGyeha++HE5g$o8iGuvAgrl0azPFDK79mCYQT10nqIGyU1XLipGwL4rc"
