@@ -1,12 +1,11 @@
 import argparse
-import json
 import logging
 from contextlib import asynccontextmanager
 
 import mongoengine
 import uvicorn
 from fastapi import FastAPI
-from jwcrypto.jwk import JWK
+from jwcrypto.jwk import JWK, JWKSet
 from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -46,22 +45,24 @@ class NodemanServer(FastAPI):
         if filename := self.settings.nodes.trusted_keys:
             try:
                 with open(filename) as fp:
-                    keys = json.load(fp)
-                    self.trusted_keys = keys.get("keys", [])
+                    self.trusted_keys = JWKSet.from_json(fp.read())
             except OSError as exc:
                 logger.error("Failed to read trusted keys from %s", filename)
                 raise exc
-            self.logger.info("Configured %d trusted keys", len(self.trusted_keys))
+            self.logger.info("Found %d trusted keys", len(self.trusted_keys.get("keys", [])))
         else:
             self.logger.warning("Starting without trusted keys")
 
+        self.users = {entry.username: entry for entry in settings.users}
+        if self.users:
+            for username in self.users:
+                logger.debug("Configured user '%s'", username)
+            logger.info("Found %d users", len(self.users))
+        else:
+            self.logger.warning("Starting without users")
+
         self.ca_client: CertificateAuthorityClient | None
         self.ca_client = self.get_step_client(self.settings.step) if self.settings.step else None
-
-        self.users = {entry.username: entry for entry in settings.users}
-        for username in self.users:
-            logger.debug("Configured admin user %s", username)
-        logger.info("Configured %d admin users", len(self.users))
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:
