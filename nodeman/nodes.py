@@ -186,6 +186,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
         status.HTTP_404_NOT_FOUND: {},
     },
     tags=["client"],
+    response_model_exclude_none=True,
 )
 async def enroll_node(
     name: str,
