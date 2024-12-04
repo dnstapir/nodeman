@@ -107,7 +107,7 @@ def main() -> None:
     x509_key = ec.generate_private_key(ec.SECP256R1())
 
     if args.renew:
-        with open(args.data_jwk_file, "r") as fp:
+        with open(args.data_jwk_file) as fp:
             data_key = JWK.from_json(fp.read())
         result = renew(name=args.name, server=args.server, data_key=data_key, x509_key=x509_key)
     else:
