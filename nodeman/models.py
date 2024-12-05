@@ -54,7 +54,7 @@ class EnrollmentRequest(NodeRequest):
     public_key: PublicJwk = Field(title="Public data key")
 
 
-class RewnewalRequest(NodeRequest):
+class RenewalRequest(NodeRequest):
     pass
 
 

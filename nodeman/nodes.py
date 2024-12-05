@@ -20,7 +20,7 @@ from .models import (
     NodeInformation,
     PublicJwk,
     PublicKeyFormat,
-    RewnewalRequest,
+    RenewalRequest,
 )
 from .x509 import process_csr_request
 
@@ -295,7 +295,7 @@ async def renew_node(
         except InvalidJWSSignature as exc:
             logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
-        message = RewnewalRequest.model_validate_json(jws.payload)
+        message = RenewalRequest.model_validate_json(jws.payload)
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
