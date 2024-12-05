@@ -50,7 +50,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    jws_payload = json.dumps({"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)})
+    jws_payload = json.dumps({"x509_csr": x509_csr})
 
     jws = JWS(payload=jws_payload)
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
