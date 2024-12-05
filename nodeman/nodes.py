@@ -12,6 +12,7 @@ from opentelemetry import metrics, trace
 from .authn import get_current_username
 from .db_models import TapirNode, TapirNodeSecret
 from .models import (
+    EnrollmentRequest,
     NodeBootstrapInformation,
     NodeCertificate,
     NodeCollection,
@@ -19,6 +20,7 @@ from .models import (
     NodeInformation,
     PublicJwk,
     PublicKeyFormat,
+    RenewalRequest,
 )
 from .x509 import process_csr_request
 
@@ -224,20 +226,20 @@ async def enroll_node(
             logger.warning("Invalid HMAC signature from %s", name, extra={"nodename": name})
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid HMAC signature") from exc
 
-        message = json.loads(jws.payload)
-        public_key = JWK(**message["public_key"])
+        message = EnrollmentRequest.model_validate_json(jws.payload)
+        public_key = JWK(**message.public_key.model_dump(exclude_none=True))
 
         # Verify signature by public data key
         try:
             jws.verify(key=public_key)
-            logger.debug("Valid proof-of-possession signature from %s", name, extra={"nodename": name})
+            logger.debug("Valid data signature from %s", name, extra={"nodename": name})
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid proof-of-possession signature from %s", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+            logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         node.public_key = public_key.export(as_dict=True, private_key=False)
 
     # Verify X.509 CSR and issue certificate
-    x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
+    x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
     with tracer.start_as_current_span("issue_certificate"):
         node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
 
@@ -289,14 +291,14 @@ async def renew_node(
         # Verify signature by public data key
         try:
             jws.verify(key=public_key)
-            logger.debug("Valid proof-of-possession signature from %s", name, extra={"nodename": name})
+            logger.debug("Valid data signature from %s", name, extra={"nodename": name})
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid proof-of-possession signature from %s", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
-        message = json.loads(jws.payload)
+            logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
+        message = RenewalRequest.model_validate_json(jws.payload)
 
     # Verify X.509 CSR and issue certificate
-    x509_csr = x509.load_pem_x509_csr(message["x509_csr"].encode())
+    x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
     with tracer.start_as_current_span("issue_certificate"):
         res = process_csr_request(csr=x509_csr, name=name, request=request)
 

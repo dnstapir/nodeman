@@ -88,6 +88,9 @@ def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
     elif len(csr.extensions) > 1:
         raise CertificateSigningRequestException("Multiple extensions")
 
+    if not csr.is_signature_valid:
+        raise CertificateSigningRequestException("Invalid CSR signature")
+
     # ensure SubjectAlternativeName is correct
     san_ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
     san_value = san_ext.value.get_values_for_type(x509.DNSName)

@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 
 import pytest
@@ -91,7 +92,11 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
+    payload = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "x509_csr": x509_csr,
+        "public_key": data_key.export_public(as_dict=True),
+    }
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
@@ -148,7 +153,10 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     # Renew certificate (bad)
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
-    payload = {"x509_csr": x509_csr}
+    payload = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "x509_csr": x509_csr,
+    }
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=rekey(data_key), alg=data_alg, protected={"alg": data_alg})
@@ -161,7 +169,10 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     # Renew certificate
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
-    payload = {"x509_csr": x509_csr}
+    payload = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "x509_csr": x509_csr,
+    }
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
@@ -260,7 +271,11 @@ def test_enroll_bad_hmac_signature() -> None:
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
+    payload = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "x509_csr": x509_csr,
+        "public_key": data_key.export_public(as_dict=True),
+    }
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
@@ -304,7 +319,11 @@ def test_enroll_bad_data_signature() -> None:
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    payload = {"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)}
+    payload = {
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "x509_csr": x509_csr,
+        "public_key": data_key.export_public(as_dict=True),
+    }
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})

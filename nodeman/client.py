@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import sys
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 
 import httpx
@@ -26,7 +27,13 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    jws_payload = json.dumps({"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)})
+    jws_payload = json.dumps(
+        {
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "x509_csr": x509_csr,
+            "public_key": data_key.export_public(as_dict=True),
+        }
+    )
 
     jws = JWS(payload=jws_payload)
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
@@ -50,7 +57,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
-    jws_payload = json.dumps({"x509_csr": x509_csr, "public_key": data_key.export_public(as_dict=True)})
+    jws_payload = json.dumps({"x509_csr": x509_csr})
 
     jws = JWS(payload=jws_payload)
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
