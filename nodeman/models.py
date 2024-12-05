@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Self
 
@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from .db_models import TapirNode
 from .settings import MqttUrl
+
+MAX_REQUEST_AGE = 300
 
 
 class PublicKeyFormat(StrEnum):
@@ -37,13 +39,23 @@ class PublicJwk(BaseModel):
     e: str | None = None
 
 
-class EnrollmentRequest(BaseModel):
+class NodeRequest(BaseModel):
+    timestamp: datetime = Field(title="Timestamp")
     x509_csr: str = Field(title="X.509 Client Certificate Bundle")
+
+    @field_validator("timestamp")
+    @classmethod
+    def validate_timestamp(cls, ts: datetime):
+        if (td := (datetime.now(tz=timezone.utc) - ts).total_seconds()) > MAX_REQUEST_AGE:
+            raise ValueError(f"Request too old or in the future, delta={td}")
+
+
+class EnrollmentRequest(NodeRequest):
     public_key: PublicJwk = Field(title="Public data key")
 
 
-class RewnewalRequest(BaseModel):
-    x509_csr: str = Field(title="X.509 Client Certificate Bundle")
+class RewnewalRequest(NodeRequest):
+    pass
 
 
 class NodeInformation(BaseModel):
