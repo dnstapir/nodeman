@@ -32,11 +32,6 @@ class StepSettings(BaseModel):
     provisioner_private_key: FilePath
 
 
-class VaultSettings(BaseModel):
-    server: AnyHttpUrl | None = Field(default="http://localhost:8200")
-    mount_point: str | None = None
-
-
 class NodesSettings(BaseModel):
     domain: str = Field(default="example.com")
     trusted_keys: FilePath | None = Field(default=None)
@@ -63,7 +58,6 @@ class User(BaseModel):
 class Settings(BaseSettings):
     mongodb: MongoDB = Field(default=MongoDB())
     step: StepSettings | None = None
-    # vault: VaultSettings = Field(default=VaultSettings())
     otlp: OtlpSettings | None = None
     users: list[User] = Field(default=[])
 
