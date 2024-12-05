@@ -235,7 +235,7 @@ async def enroll_node(
             logger.debug("Valid data signature from %s", name, extra={"nodename": name})
         except InvalidJWSSignature as exc:
             logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         node.public_key = public_key.export(as_dict=True, private_key=False)
 
     # Verify X.509 CSR and issue certificate
@@ -294,7 +294,7 @@ async def renew_node(
             logger.debug("Valid data signature from %s", name, extra={"nodename": name})
         except InvalidJWSSignature as exc:
             logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid proof-of-possession signature") from exc
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         message = RenewalRequest.model_validate_json(jws.payload)
 
     # Verify X.509 CSR and issue certificate
