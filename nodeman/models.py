@@ -37,6 +37,15 @@ class PublicJwk(BaseModel):
     e: str | None = None
 
 
+class EnrollmentRequest(BaseModel):
+    x509_csr: str = Field(title="X.509 Client Certificate Bundle")
+    public_key: PublicJwk = Field(title="Public data key")
+
+
+class RewnewalRequest(BaseModel):
+    x509_csr: str = Field(title="X.509 Client Certificate Bundle")
+
+
 class NodeInformation(BaseModel):
     name: str = Field(title="Node name")
     public_key: PublicJwk | None = Field(title="Public key")
