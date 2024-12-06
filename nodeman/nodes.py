@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
+from pydantic_core import ValidationError
 
 from .authn import get_current_username
 from .db_models import TapirNode, TapirNodeSecret
@@ -232,7 +233,11 @@ async def enroll_node(
             logger.warning("Invalid HMAC signature from %s", name, extra={"nodename": name})
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid HMAC signature") from exc
 
-        message = EnrollmentRequest.model_validate_json(jws.payload)
+        try:
+            message = EnrollmentRequest.model_validate_json(jws.payload)
+        except ValidationError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST) from exc
+
         public_key = JWK(**message.public_key.model_dump(exclude_none=True))
 
         # Verify signature by public data key
@@ -301,7 +306,10 @@ async def renew_node(
         except InvalidJWSSignature as exc:
             logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
-        message = RenewalRequest.model_validate_json(jws.payload)
+        try:
+            message = RenewalRequest.model_validate_json(jws.payload)
+        except ValidationError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST) from exc
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
