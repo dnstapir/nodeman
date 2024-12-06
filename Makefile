@@ -34,11 +34,21 @@ push-container:
 server: $(DEPENDS)
 	poetry run nodeman_server --host 127.0.0.1 --port 8080 --debug
 
-test-client:
-	poetry run nodeman_client --username username --password password
+test-client: test-client-enroll test-client-renew
+
+test-client-enroll:
+	rm -f tls.crt tls-ca.crt tls.key data.json
+	NODEMAN_USERNAME=username NODEMAN_PASSWORD=password poetry run nodeman_client enroll --create
+	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
+
+test-client-renew:
+	rm -f tls.crt tls-ca.crt tls.key
+	poetry run nodeman_client renew
 	step crypto jwk public < data.json
+	step certificate inspect tls.crt
+	step certificate inspect tls-ca.crt
 
 step:
 	docker compose exec step cat /home/step/certs/root_ca.crt > $(CA_CERT)
