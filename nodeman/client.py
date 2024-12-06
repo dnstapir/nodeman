@@ -46,7 +46,7 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
         response = httpx.post(url, json=enrollment_request)
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        print(response.text)
+        logging.error(response.text)
         raise SystemExit(1) from exc
 
     enrollment_response = response.json()
@@ -78,7 +78,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
         response = httpx.post(url, json=renewal_request)
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        print(response.text)
+        logging.error(response.text)
         raise SystemExit(1) from exc
 
     renewal_response = response.json()
