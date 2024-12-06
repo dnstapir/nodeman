@@ -11,6 +11,7 @@ from opentelemetry import metrics, trace
 
 from .authn import get_current_username
 from .db_models import TapirNode, TapirNodeSecret
+from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     EnrollmentRequest,
     NodeBootstrapInformation,
@@ -18,7 +19,6 @@ from .models import (
     NodeCollection,
     NodeConfiguration,
     NodeInformation,
-    PublicJwk,
     PublicKeyFormat,
     RenewalRequest,
 )
@@ -114,7 +114,13 @@ def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> No
             "content": {
                 PublicKeyFormat.JWK: {
                     "title": "JWK",
-                    "schema": PublicJwk.model_json_schema(),
+                    "schema": {
+                        "anyOf": [
+                            PublicRSA.model_json_schema(),
+                            PublicEC.model_json_schema(),
+                            PublicOKP.model_json_schema(),
+                        ]
+                    },
                 },
                 PublicKeyFormat.PEM: {"title": "PEM", "schema": {"type": "string"}},
             },

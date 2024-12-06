@@ -35,7 +35,7 @@ server: $(DEPENDS)
 	poetry run nodeman_server --host 127.0.0.1 --port 8080 --debug
 
 test-client:
-	poetry run nodeman_client
+	poetry run nodeman_client --username username --password password
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
 	step crypto jwk public < data.json
