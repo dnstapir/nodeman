@@ -95,7 +95,7 @@ def save_x509(args: argparse.Namespace, x509_key: PrivateKey, x509_certificate: 
         fp.write(
             x509_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                format=serialization.PrivateFormat.PKCS8,
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
@@ -107,7 +107,7 @@ def save_x509(args: argparse.Namespace, x509_key: PrivateKey, x509_certificate: 
         fp.write(x509_ca_certificate)
 
 
-def get_admin_client(args) -> httpx.Client:
+def get_admin_client(args: argparse.Namespace) -> httpx.Client:
     """Get admin client"""
 
     username = getattr(args, "username", None) or os.environ.get("NODEMAN_USERNAME")
@@ -120,6 +120,22 @@ def get_admin_client(args) -> httpx.Client:
     auth = (username, password)
 
     return httpx.Client(auth=auth)
+
+
+def generate_x509_key(kty: str, crv: str) -> PrivateKey:
+    match (kty, crv):
+        case ("RSA", _):
+            raise ValueError("RSA not supported")
+        case ("EC", "P-256"):
+            return ec.generate_private_key(ec.SECP256R1())
+        case ("EC", "P-384"):
+            return ec.generate_private_key(ec.SECP384R1())
+        case ("OKP", "Ed25519"):
+            return Ed25519PrivateKey.generate()
+        case ("OKP", "Ed448"):
+            return Ed448PrivateKey.generate()
+        case _:
+            raise ValueError("Unsupported key type")
 
 
 def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
@@ -204,7 +220,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
 
     hmac_key = JWK(kty="oct", k=secret)
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
-    x509_key = ec.generate_private_key(ec.SECP256R1())
+    x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
     result = enroll(name=name, server=args.server, hmac_key=hmac_key, data_key=data_key, x509_key=x509_key)
 
@@ -221,7 +237,7 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
 
     with open(args.data_jwk_file) as fp:
         data_key = JWK.from_json(fp.read())
-    x509_key = ec.generate_private_key(ec.SECP256R1())
+    x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
     name = data_key.kid or args.name
 
