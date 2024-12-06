@@ -47,7 +47,7 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         print(response.text)
-        raise SystemExit(-1) from exc
+        raise SystemExit(1) from exc
 
     enrollment_response = response.json()
 
@@ -79,7 +79,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         print(response.text)
-        raise SystemExit(-1) from exc
+        raise SystemExit(1) from exc
 
     renewal_response = response.json()
 
@@ -115,7 +115,7 @@ def get_admin_client(args) -> httpx.Client:
 
     if not (username and password):
         logging.error("Admin username & password required")
-        raise SystemExit(-1)
+        raise SystemExit(1)
 
     auth = (username, password)
 
@@ -200,7 +200,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
 
     if not name:
         logging.error("Node name not set")
-        raise SystemExit(-1)
+        raise SystemExit(1)
 
     hmac_key = JWK(kty="oct", k=secret)
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
@@ -227,7 +227,7 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
 
     if not name:
         logging.error("Node name not set")
-        raise SystemExit(-1)
+        raise SystemExit(1)
 
     result = renew(name=name, server=args.server, data_key=data_key, x509_key=x509_key)
 
