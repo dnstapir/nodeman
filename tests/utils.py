@@ -57,7 +57,9 @@ def generate_ca_certificate(
         critical=True,
     )
 
+    private_key = root_ca_private_key or issuer_ca_private_key
+
     return builder.sign(
-        private_key=root_ca_private_key or issuer_ca_private_key,
-        algorithm=get_hash_algorithm_from_key(issuer_ca_private_key),
+        private_key=private_key,
+        algorithm=get_hash_algorithm_from_key(private_key),
     )
