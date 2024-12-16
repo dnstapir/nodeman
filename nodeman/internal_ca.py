@@ -55,9 +55,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             ca_certificate = x509.load_pem_x509_certificate(fp.read())
 
         with open(ca_private_key_file, "rb") as fp:
-            ca_private_key = load_pem_private_key(fp.read())
-            if not isinstance(ca_private_key, PrivateKey):
-                raise ValueError("Unsupported private key algorithm")
+            ca_private_key = load_pem_private_key(fp.read(), password=None)
 
         return cls(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity, time_skew=time_skew)
 

@@ -1,4 +1,6 @@
+import os
 from datetime import timedelta
+from tempfile import NamedTemporaryFile
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -34,6 +36,34 @@ def _test_internal_ca(ca_private_key: PrivateKey) -> None:
         [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in res.cert_chain]
     )
     print(x509_certificate_pem)
+
+
+def test_internal_ca_file() -> None:
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
+
+    ca_private_key = ec.generate_private_key(ec.SECP256R1())
+    ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
+
+    with NamedTemporaryFile(mode="wb", delete=False, suffix=".pem") as fp:
+        fp.write(
+            ca_private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+        ca_private_key_file = fp.name
+
+    with NamedTemporaryFile(mode="wb", delete=False, suffix=".pem") as fp:
+        fp.write(ca_certificate.public_bytes(encoding=serialization.Encoding.PEM))
+        ca_certificate_file = fp.name
+
+    _ = InternalCertificateAuthority.load(
+        ca_certificate_file=ca_certificate_file, ca_private_key_file=ca_private_key_file
+    )
+
+    os.unlink(ca_certificate_file)
+    os.unlink(ca_private_key_file)
 
 
 def test_internal_ca_rsa() -> None:
