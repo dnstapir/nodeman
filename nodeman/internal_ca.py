@@ -45,9 +45,13 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
     @classmethod
     def load(
-        cls, ca_certificate_file: str, ca_private_key_file: str, validity: timedelta, w: timedelta | None = None
+        cls,
+        ca_certificate_file: str,
+        ca_private_key_file: str,
+        validity: timedelta | None = None,
+        time_skew: timedelta | None = None,
     ) -> Self:
-        with open(ca_private_key_file, "rb") as fp:
+        with open(ca_certificate_file, "rb") as fp:
             ca_certificate = x509.load_pem_x509_certificate(fp.read())
 
         with open(ca_private_key_file, "rb") as fp:
@@ -55,7 +59,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             if not isinstance(ca_private_key, PrivateKey):
                 raise ValueError("Unsupported private key algorithm")
 
-        return cls(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity)
+        return cls(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity, time_skew=time_skew)
 
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
