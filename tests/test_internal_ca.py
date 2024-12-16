@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from cryptography import x509
@@ -10,8 +11,19 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.x509.oid import NameOID
 
 from nodeman.internal_ca import InternalCertificateAuthority
-from nodeman.x509 import PrivateKey, generate_x509_csr, verify_x509_csr
+from nodeman.x509 import CertificateInformation, PrivateKey, generate_x509_csr, verify_x509_csr
 from tests.utils import generate_ca_certificate
+
+
+def _verify_certification_information(res: CertificateInformation) -> None:
+    store = x509.verification.Store([res.ca_cert])
+    builder = x509.verification.PolicyBuilder()
+    builder = builder.store(store)
+    verifier = builder.build_client_verifier()
+    peer_certificate = res.cert_chain[0]
+    untrusted_intermediates = res.cert_chain[1:]
+    verified_client = verifier.verify(peer_certificate, untrusted_intermediates)
+    assert verified_client.subjects is not None
 
 
 def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
@@ -22,7 +34,7 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
 
     validity = timedelta(minutes=10)
     ca_client = InternalCertificateAuthority(
-        ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity
+        issuer_ca_certificate=ca_certificate, issuer_ca_private_key=ca_private_key, validity=validity
     )
 
     name = "hostname.example.com"
@@ -50,19 +62,43 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
     print(x509_ca_certificate_pem)
 
     if verify:
-        store = x509.verification.Store([res.ca_cert])
-        builder = x509.verification.PolicyBuilder()
-        builder = builder.store(store)
-        verifier = builder.build_client_verifier()
-        peer_certificate = res.cert_chain[0]
-        untrusted_intermediates = res.cert_chain[1:]
-        verified_client = verifier.verify(peer_certificate, untrusted_intermediates)
-        assert verified_client.subjects is not None
+        _verify_certification_information(res)
+
+
+def test_internal_sub_ca() -> None:
+    """Test internal issuer CA with separate root CA"""
+
+    root_ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Root Test CA")])
+    root_ca_private_key = ec.generate_private_key(ec.SECP256R1())
+    root_ca_certificate = generate_ca_certificate(root_ca_name, root_ca_private_key)
+
+    issuer_ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Issuer Test CA")])
+    issuer_ca_private_key = ec.generate_private_key(ec.SECP256R1())
+    issuer_ca_certificate = generate_ca_certificate(
+        issuer_ca_name=issuer_ca_name,
+        issuer_ca_private_key=issuer_ca_private_key,
+        root_ca_name=root_ca_name,
+        root_ca_private_key=root_ca_private_key,
+    )
+
+    validity = timedelta(minutes=10)
+    ca_client = InternalCertificateAuthority(
+        issuer_ca_certificate=issuer_ca_certificate,
+        issuer_ca_private_key=issuer_ca_private_key,
+        root_ca_certificate=root_ca_certificate,
+        validity=validity,
+    )
+
+    name = "hostname.example.com"
+    key = ec.generate_private_key(ec.SECP256R1())
+    csr = generate_x509_csr(key=key, name=name)
+
+    res = ca_client.sign_csr(csr, name)
+    _verify_certification_information(res)
 
 
 def test_internal_ca_file() -> None:
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
-
     ca_private_key = ec.generate_private_key(ec.SECP256R1())
     ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
 
@@ -74,14 +110,15 @@ def test_internal_ca_file() -> None:
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
-        ca_private_key_file = fp.name
+        ca_private_key_file = Path(fp.name)
 
     with NamedTemporaryFile(mode="wb", delete=False, suffix=".pem") as fp:
         fp.write(ca_certificate.public_bytes(encoding=serialization.Encoding.PEM))
-        ca_certificate_file = fp.name
+        ca_certificate_file = Path(fp.name)
 
     _ = InternalCertificateAuthority.load(
-        ca_certificate_file=ca_certificate_file, ca_private_key_file=ca_private_key_file
+        issuer_ca_certificate_file=ca_certificate_file,
+        issuer_ca_private_key_file=ca_private_key_file,
     )
 
     os.unlink(ca_certificate_file)

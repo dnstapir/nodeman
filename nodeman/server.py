@@ -1,6 +1,7 @@
 import argparse
 import logging
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 import mongoengine
 import uvicorn
@@ -15,7 +16,8 @@ from dnstapir.logging import configure_json_logging
 from dnstapir.opentelemetry import configure_opentelemetry
 
 from . import OPENAPI_METADATA, __verbose_version__
-from .settings import Settings, StepSettings
+from .internal_ca import InternalCertificateAuthority
+from .settings import InternalCaSettings, Settings, StepSettings
 from .step import StepClient
 from .x509 import CertificateAuthorityClient
 
@@ -62,7 +64,22 @@ class NodemanServer(FastAPI):
             self.logger.warning("Starting without users")
 
         self.ca_client: CertificateAuthorityClient | None
-        self.ca_client = self.get_step_client(self.settings.step) if self.settings.step else None
+
+        if self.settings.internal_ca:
+            self.ca_client = self.get_internal_ca_client(self.settings.internal_ca)
+        elif self.settings.step:
+            self.ca_client = self.get_step_client(self.settings.step)
+        else:
+            self.ca_client = None
+
+    @staticmethod
+    def get_internal_ca_client(settings: InternalCaSettings) -> InternalCertificateAuthority:
+        return InternalCertificateAuthority.load(
+            issuer_ca_certificate_file=settings.issuer_ca_certificate,
+            issuer_ca_private_key_file=settings.issuer_ca_private_key,
+            root_ca_certificate_file=settings.root_ca_certificate,
+            validity=timedelta(seconds=settings.validity),
+        )
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Self
 
 from cryptography import x509
@@ -32,32 +33,47 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
     def __init__(
         self,
-        ca_certificate: x509.Certificate,
-        ca_private_key: PrivateKey,
+        issuer_ca_certificate: x509.Certificate,
+        issuer_ca_private_key: PrivateKey,
+        root_ca_certificate: x509.Certificate | None = None,
         validity: timedelta | None = None,
         time_skew: timedelta | None = None,
     ):
-        self.ca_certificate = ca_certificate
-        self.ca_private_key = ca_private_key
+        self.issuer_ca_certificate = issuer_ca_certificate
+        self.issuer_ca_private_key = issuer_ca_private_key
+        self.root_ca_certificate = root_ca_certificate or issuer_ca_certificate
         self.time_skew = time_skew or timedelta(minutes=10)
         self.validity = validity or timedelta(minutes=10)
-        self.signature_hash_algorithm = get_hash_algorithm_from_key(self.ca_private_key)
+        self.signature_hash_algorithm = get_hash_algorithm_from_key(self.issuer_ca_private_key)
 
     @classmethod
     def load(
         cls,
-        ca_certificate_file: str,
-        ca_private_key_file: str,
+        issuer_ca_certificate_file: Path,
+        issuer_ca_private_key_file: Path,
+        root_ca_certificate_file: Path | None = None,
         validity: timedelta | None = None,
         time_skew: timedelta | None = None,
     ) -> Self:
-        with open(ca_certificate_file, "rb") as fp:
-            ca_certificate = x509.load_pem_x509_certificate(fp.read())
+        with open(issuer_ca_certificate_file, "rb") as fp:
+            issuer_ca_certificate = x509.load_pem_x509_certificate(fp.read())
 
-        with open(ca_private_key_file, "rb") as fp:
-            ca_private_key = load_pem_private_key(fp.read(), password=None)
+        with open(issuer_ca_private_key_file, "rb") as fp:
+            issuer_ca_private_key = load_pem_private_key(fp.read(), password=None)
 
-        return cls(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity, time_skew=time_skew)
+        if root_ca_certificate_file:
+            with open(root_ca_certificate_file, "rb") as fp:
+                root_ca_certificate = x509.load_pem_x509_certificate(fp.read())
+        else:
+            root_ca_certificate = None
+
+        return cls(
+            issuer_ca_certificate=issuer_ca_certificate,
+            issuer_ca_private_key=issuer_ca_private_key,
+            root_ca_certificate=root_ca_certificate,
+            validity=validity,
+            time_skew=time_skew,
+        )
 
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
@@ -66,7 +82,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]))
-        builder = builder.issuer_name(self.ca_certificate.subject)
+        builder = builder.issuer_name(self.issuer_ca_certificate.subject)
         builder = builder.not_valid_before(now - self.time_skew)
         builder = builder.not_valid_after(now + self.validity)
         builder = builder.serial_number(x509.random_serial_number())
@@ -77,7 +93,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         builder = builder.add_extension(x509.SubjectKeyIdentifier.from_public_key(csr.public_key()), critical=False)
         builder = builder.add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_public_key(self.ca_certificate.public_key()), critical=False
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(self.issuer_ca_certificate.public_key()), critical=False
         )
         builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(name)]), critical=False)
         builder = builder.add_extension(
@@ -85,6 +101,11 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             critical=True,
         )
 
-        certificate = builder.sign(private_key=self.ca_private_key, algorithm=self.signature_hash_algorithm)
+        certificate = builder.sign(private_key=self.issuer_ca_private_key, algorithm=self.signature_hash_algorithm)
 
-        return CertificateInformation(cert_chain=[certificate], ca_cert=self.ca_certificate)
+        if self.root_ca_certificate != self.issuer_ca_certificate:
+            cert_chain = [certificate, self.issuer_ca_certificate]
+        else:
+            cert_chain = [certificate]
+
+        return CertificateInformation(cert_chain=cert_chain, ca_cert=self.root_ca_certificate)

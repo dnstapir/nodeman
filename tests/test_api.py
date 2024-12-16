@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.x509.oid import NameOID
 from fastapi import status
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
@@ -34,16 +35,21 @@ Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
 settings = Settings()
 
 
-def get_ca_client(ca_name: str) -> CertificateAuthorityClient:
+def get_ca_client() -> CertificateAuthorityClient:
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
     ca_private_key = ec.generate_private_key(ec.SECP256R1())
     ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
     validity = timedelta(minutes=10)
-    return InternalCertificateAuthority(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity)
+    return InternalCertificateAuthority(
+        issuer_ca_certificate=ca_certificate,
+        issuer_ca_private_key=ca_private_key,
+        validity=validity,
+    )
 
 
 def get_test_client() -> TestClient:
     app = NodemanServer(settings)
-    app.ca_client = get_ca_client("ca.example.com")
+    app.ca_client = get_ca_client()
     app.connect_mongodb()
     return TestClient(app)
 

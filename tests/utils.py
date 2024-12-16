@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
-from cryptography.x509.oid import NameOID
 from jwcrypto.common import base64url_decode
 from jwcrypto.jwk import JWK
 
@@ -21,21 +20,24 @@ def rekey(key: JWK) -> JWK:
     return JWK.generate(**params)
 
 
-def generate_ca_certificate(ca_name: x509.Name | str, ca_private_key: PrivateKey) -> x509.Certificate:
+def generate_ca_certificate(
+    issuer_ca_name: x509.Name,
+    issuer_ca_private_key: PrivateKey,
+    root_ca_name: x509.Name | None = None,
+    root_ca_private_key: PrivateKey | None = None,
+) -> x509.Certificate:
     """Generate CA Certificate"""
 
     now = datetime.now(tz=timezone.utc)
     validity = timedelta(days=1)
 
-    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, ca_name)]) if isinstance(ca_name, str) else ca_name
-
     builder = x509.CertificateBuilder()
-    builder = builder.subject_name(ca_name)
-    builder = builder.issuer_name(ca_name)
+    builder = builder.subject_name(issuer_ca_name)
+    builder = builder.issuer_name(root_ca_name or issuer_ca_name)
     builder = builder.not_valid_before(now)
     builder = builder.not_valid_after(now + validity)
     builder = builder.serial_number(x509.random_serial_number())
-    builder = builder.public_key(ca_private_key.public_key())
+    builder = builder.public_key(issuer_ca_private_key.public_key())
     builder = builder.add_extension(
         x509.BasicConstraints(ca=True, path_length=None),
         critical=True,
@@ -55,4 +57,7 @@ def generate_ca_certificate(ca_name: x509.Name | str, ca_private_key: PrivateKey
         critical=True,
     )
 
-    return builder.sign(private_key=ca_private_key, algorithm=get_hash_algorithm_from_key(ca_private_key))
+    return builder.sign(
+        private_key=root_ca_private_key or issuer_ca_private_key,
+        algorithm=get_hash_algorithm_from_key(issuer_ca_private_key),
+    )
