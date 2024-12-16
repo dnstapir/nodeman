@@ -23,7 +23,7 @@ from nodeman.jose import jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import CertificateAuthorityClient, generate_x509_csr
+from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_x509_csr
 from tests.utils import generate_ca_certificate, rekey
 
 ADMIN_TEST_NODE_COUNT = 100
@@ -243,7 +243,7 @@ def test_enroll_ed448() -> None:
 
 def test_enroll_rsa() -> None:
     data_key = JWK.generate(kty="RSA", size=2048)
-    x509_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    x509_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 

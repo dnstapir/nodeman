@@ -1,19 +1,21 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey, EllipticCurvePublicKey
+from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey, Ed448PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from cryptography.x509.oid import ExtensionOID, NameOID
 from fastapi import HTTPException, Request, status
 
 from .models import NodeCertificate
 
+RSA_EXPONENT = 65537
 type PrivateKey = RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,21 @@ def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequ
     )
 
 
+def generate_similar_key(key: PrivateKey) -> PrivateKey:
+    """Generate similar new private key"""
+
+    if isinstance(key, rsa.RSAPrivateKey):
+        return rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=key.key_size)
+    elif isinstance(key, ec.EllipticCurvePrivateKey):
+        return ec.generate_private_key(curve=key.curve)
+    elif isinstance(key, Ed25519PrivateKey):
+        return Ed25519PrivateKey.generate()
+    elif isinstance(key, Ed448PrivateKey):
+        return Ed448PrivateKey.generate()
+    else:
+        raise ValueError("Unsupported algorithm")
+
+
 class CertificateSigningRequestException(ValueError):
     pass
 
@@ -68,7 +85,7 @@ class SubjectAlternativeNameMismatchError(CertificateSigningRequestException):
     pass
 
 
-def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
+def verify_x509_csr(csr: x509.CertificateSigningRequest, name: str) -> None:
     """Verify X.509 CSR against name"""
 
     # ensure Subject is correct
@@ -96,6 +113,28 @@ def verify_x509_csr(name: str, csr: x509.CertificateSigningRequest) -> None:
     san_value = san_ext.value.get_values_for_type(x509.DNSName)
     if san_value != [name]:
         raise SubjectAlternativeNameMismatchError(f"Invalid SubjectAlternativeName, got {san_value} expected {name}")
+
+
+def verify_x509_csr_signature(csr: x509.CertificateSigningRequest) -> None:
+    """Verify X.509 CSR signature"""
+
+    public_key = csr.public_key()
+    verify_kwargs: dict[str, Any] = {}
+
+    if isinstance(public_key, RSAPublicKey):
+        verify_kwargs = {"algorithm": csr.signature_hash_algorithm, "padding": csr.signature_algorithm_parameters}
+    elif isinstance(public_key, EllipticCurvePublicKey):
+        verify_kwargs = {"signature_algorithm": csr.signature_algorithm_parameters}
+    elif isinstance(public_key, (Ed25519PublicKey, Ed448PublicKey)):
+        pass
+    else:
+        raise ValueError(f"Unsupported algorithm: {public_key}")
+
+    try:
+        public_key.verify(signature=csr.signature, data=csr.tbs_certrequest_bytes, **verify_kwargs)
+    except Exception as exc:
+        logger.error("CSR signature not valid: %s", exc, exc_info=exc)
+        raise ValueError("Invalid CSR signature") from exc
 
 
 def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:

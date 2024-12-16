@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Self
@@ -6,7 +7,15 @@ from cryptography import x509
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from nodeman.x509 import CertificateAuthorityClient, CertificateInformation, PrivateKey, get_hash_algorithm_from_key
+from nodeman.x509 import (
+    CertificateAuthorityClient,
+    CertificateInformation,
+    PrivateKey,
+    get_hash_algorithm_from_key,
+    verify_x509_csr_signature,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class InternalCertificateAuthority(CertificateAuthorityClient):
@@ -78,6 +87,8 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
+
+        verify_x509_csr_signature(csr=csr)
 
         now = datetime.now(tz=timezone.utc)
 
