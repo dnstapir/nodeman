@@ -25,11 +25,12 @@ def generate_ca_certificate(
     issuer_ca_private_key: PrivateKey,
     root_ca_name: x509.Name | None = None,
     root_ca_private_key: PrivateKey | None = None,
+    validity_days: int = 1,
 ) -> x509.Certificate:
     """Generate CA Certificate"""
 
     now = datetime.now(tz=timezone.utc)
-    validity = timedelta(days=1)
+    validity = timedelta(days=validity_days)
 
     builder = x509.CertificateBuilder()
     builder = builder.subject_name(issuer_ca_name)

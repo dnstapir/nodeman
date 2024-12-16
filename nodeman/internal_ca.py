@@ -36,6 +36,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         issuer_ca_certificate: x509.Certificate,
         issuer_ca_private_key: PrivateKey,
         root_ca_certificate: x509.Certificate | None = None,
+        validity_days: int = 1,
         validity: timedelta | None = None,
         time_skew: timedelta | None = None,
     ):
@@ -43,7 +44,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         self.issuer_ca_private_key = issuer_ca_private_key
         self.root_ca_certificate = root_ca_certificate or issuer_ca_certificate
         self.time_skew = time_skew or timedelta(minutes=10)
-        self.validity = validity or timedelta(minutes=10)
+        self.validity = validity or timedelta(days=validity_days)
         self.signature_hash_algorithm = get_hash_algorithm_from_key(self.issuer_ca_private_key)
 
     @classmethod
@@ -52,7 +53,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         issuer_ca_certificate_file: Path,
         issuer_ca_private_key_file: Path,
         root_ca_certificate_file: Path | None = None,
-        validity: timedelta | None = None,
+        validity_days: int = 1,
         time_skew: timedelta | None = None,
     ) -> Self:
         with open(issuer_ca_certificate_file, "rb") as fp:
@@ -71,7 +72,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             issuer_ca_certificate=issuer_ca_certificate,
             issuer_ca_private_key=issuer_ca_private_key,
             root_ca_certificate=root_ca_certificate,
-            validity=validity,
+            validity_days=validity_days,
             time_skew=time_skew,
         )
 
