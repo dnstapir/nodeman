@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 import pytest
@@ -17,12 +17,13 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
+from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import generate_x509_csr
-from tests.utils import CaTestClient, rekey
+from nodeman.x509 import CertificateAuthorityClient, generate_x509_csr
+from tests.utils import generate_ca_certificate, rekey
 
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")
@@ -33,9 +34,16 @@ Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
 settings = Settings()
 
 
+def get_ca_client(ca_name: str) -> CertificateAuthorityClient:
+    ca_private_key = ec.generate_private_key(ec.SECP256R1())
+    ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
+    validity = timedelta(minutes=10)
+    return InternalCertificateAuthority(ca_certificate=ca_certificate, ca_private_key=ca_private_key, validity=validity)
+
+
 def get_test_client() -> TestClient:
     app = NodemanServer(settings)
-    app.ca_client = CaTestClient()
+    app.ca_client = get_ca_client("ca.example.com")
     app.connect_mongodb()
     return TestClient(app)
 
