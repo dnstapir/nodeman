@@ -44,6 +44,8 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
         issuer_ca_certificate=ca_certificate, issuer_ca_private_key=ca_private_key, validity=validity
     )
 
+    _ = ca_client.ca_fingerprint
+
     key = generate_similar_key(ca_private_key)
     name = "hostname.example.com"
     csr = generate_x509_csr(key=key, name=name)

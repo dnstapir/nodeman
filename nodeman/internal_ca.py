@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Self
 
 from cryptography import x509
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
@@ -88,9 +89,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
     @property
     def ca_fingerprint(self) -> str:
-        return hexlify(
-            x509.SubjectKeyIdentifier.from_public_key(self.issuer_ca_private_key.public_key()).digest
-        ).decode()
+        return hexlify(self.issuer_ca_certificate.fingerprint(hashes.SHA256())).decode()
 
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
