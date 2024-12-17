@@ -115,7 +115,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     node_enroll_url = f"{node_url}/enroll"
 
@@ -174,7 +174,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=rekey(data_key), alg=data_alg, protected={"alg": data_alg})
-    renew_request = jws.serialize()
+    renew_request = json.loads(jws.serialize())
 
     response = client.post(f"{node_url}/renew", json=renew_request)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -190,7 +190,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    renew_request = jws.serialize()
+    renew_request = json.loads(jws.serialize())
 
     response = client.post(f"{node_url}/renew", json=renew_request)
     assert response.status_code == status.HTTP_200_OK
@@ -294,7 +294,7 @@ def test_enroll_bad_hmac_signature() -> None:
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)
@@ -342,7 +342,7 @@ def test_enroll_bad_data_signature() -> None:
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=bad_data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)

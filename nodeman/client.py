@@ -38,7 +38,7 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
     jws = JWS(payload=jws_payload)
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
 
@@ -71,7 +71,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
 
     jws = JWS(payload=jws_payload)
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    renewal_request = jws.serialize()
+    renewal_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/renew")
     try:
