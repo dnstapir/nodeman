@@ -17,7 +17,7 @@ from nodeman.x509 import (
     PrivateKey,
     generate_similar_key,
     generate_x509_csr,
-    verify_x509_csr,
+    verify_x509_csr_data,
 )
 from tests.utils import generate_ca_certificate
 
@@ -48,7 +48,7 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
     name = "hostname.example.com"
     csr = generate_x509_csr(key=key, name=name)
 
-    verify_x509_csr(name=name, csr=csr)
+    verify_x509_csr_data(name=name, csr=csr)
 
     res = ca_client.sign_csr(csr, name)
 

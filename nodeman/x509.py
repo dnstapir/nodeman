@@ -85,7 +85,7 @@ class SubjectAlternativeNameMismatchError(CertificateSigningRequestException):
     pass
 
 
-def verify_x509_csr(csr: x509.CertificateSigningRequest, name: str) -> None:
+def verify_x509_csr_data(csr: x509.CertificateSigningRequest, name: str) -> None:
     """Verify X.509 CSR against name"""
 
     # ensure Subject is correct
@@ -114,8 +114,10 @@ def verify_x509_csr(csr: x509.CertificateSigningRequest, name: str) -> None:
     if san_value != [name]:
         raise SubjectAlternativeNameMismatchError(f"Invalid SubjectAlternativeName, got {san_value} expected {name}")
 
+    logger.info("Verified CSR data for %s", name)
 
-def verify_x509_csr_signature(csr: x509.CertificateSigningRequest) -> None:
+
+def verify_x509_csr_signature(csr: x509.CertificateSigningRequest, name: str) -> None:
     """Verify X.509 CSR signature"""
 
     public_key = csr.public_key()
@@ -136,11 +138,13 @@ def verify_x509_csr_signature(csr: x509.CertificateSigningRequest) -> None:
         logger.error("CSR signature not valid: %s", exc, exc_info=exc)
         raise ValueError("Invalid CSR signature") from exc
 
+    logger.info("Verified CSR signature for %s", name)
+
 
 def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:
     """Verify CSR and issue certificate"""
 
-    verify_x509_csr(name=name, csr=csr)
+    verify_x509_csr_data(name=name, csr=csr)
 
     try:
         ca_response = request.app.ca_client.sign_csr(csr, name)
@@ -148,21 +152,29 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
         logger.error("Failed to process CSR for %s", name)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
 
-    x509_certificate = "".join(
+    x509_certificate_pem = "".join(
         [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
     )
-    x509_ca_certificate = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
-    x509_certificate_serial_number = ca_response.cert_chain[0].serial_number
+    x509_ca_certificate_pem = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+
+    x509_certificate: x509.Certificate = ca_response.cert_chain[0]
+    x509_certificate_serial_number = x509_certificate.serial_number
+    x509_not_valid_after_utc = x509_certificate.not_valid_after_utc.isoformat()
 
     logger.info(
-        "Issued certificate for name=%s serial=%d",
+        "Issued certificate for name=%s serial=%d not_valid_after=%s",
         name,
         x509_certificate_serial_number,
-        extra={"nodename": name, "x509_certificate_serial_number": x509_certificate_serial_number},
+        x509_not_valid_after_utc,
+        extra={
+            "nodename": name,
+            "x509_certificate_serial_number": x509_certificate_serial_number,
+            "not_valid_after": x509_not_valid_after_utc,
+        },
     )
 
     return NodeCertificate(
-        x509_certificate=x509_certificate,
-        x509_ca_certificate=x509_ca_certificate,
+        x509_certificate=x509_certificate_pem,
+        x509_ca_certificate=x509_ca_certificate_pem,
         x509_certificate_serial_number=x509_certificate_serial_number,
     )

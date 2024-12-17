@@ -73,12 +73,14 @@ class NodemanServer(FastAPI):
 
     @staticmethod
     def get_internal_ca_client(settings: InternalCaSettings) -> InternalCertificateAuthority:
-        return InternalCertificateAuthority.load(
+        res = InternalCertificateAuthority.load(
             issuer_ca_certificate_file=settings.issuer_ca_certificate,
             issuer_ca_private_key_file=settings.issuer_ca_private_key,
             root_ca_certificate_file=settings.root_ca_certificate,
             validity_days=settings.validity_days,
         )
+        logger.info("Configured Internal CA (%s)", res.ca_fingerprint)
+        return res
 
     @staticmethod
     def get_step_client(settings: StepSettings) -> StepClient:

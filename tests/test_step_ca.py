@@ -7,7 +7,7 @@ from jwcrypto.jwk import JWK
 
 from nodeman.settings import StepSettings
 from nodeman.step import StepClient
-from nodeman.x509 import generate_x509_csr, verify_x509_csr
+from nodeman.x509 import generate_x509_csr, verify_x509_csr_data
 
 
 def test_step_ca() -> None:
@@ -46,7 +46,7 @@ def test_step_ca() -> None:
     key = ec.generate_private_key(ec.SECP256R1())
     csr = generate_x509_csr(key=key, name=name)
 
-    verify_x509_csr(name=name, csr=csr)
+    verify_x509_csr_data(name=name, csr=csr)
 
     res = ca_client.sign_csr(csr, name)
     print(res)

@@ -1,4 +1,5 @@
 import logging
+from binascii import hexlify
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Self
@@ -85,10 +86,18 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             time_skew=time_skew,
         )
 
+    @property
+    def ca_fingerprint(self) -> str:
+        return hexlify(
+            x509.SubjectKeyIdentifier.from_public_key(self.issuer_ca_private_key.public_key()).digest
+        ).decode()
+
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
 
-        verify_x509_csr_signature(csr=csr)
+        logger.debug("Processing CSR from %s", name)
+
+        verify_x509_csr_signature(csr=csr, name=name)
 
         now = datetime.now(tz=timezone.utc)
 
