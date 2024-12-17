@@ -6,6 +6,10 @@ from typing import Self
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
@@ -72,6 +76,10 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         with open(issuer_ca_private_key_file, "rb") as fp:
             issuer_ca_private_key = load_pem_private_key(fp.read(), password=None)
+        if not isinstance(
+            issuer_ca_private_key, (RSAPrivateKey, EllipticCurvePrivateKey, Ed25519PrivateKey, Ed448PrivateKey)
+        ):
+            raise ValueError("Unsupported private key type")
 
         if root_ca_certificate_file:
             with open(root_ca_certificate_file, "rb") as fp:
