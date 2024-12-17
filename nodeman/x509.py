@@ -124,9 +124,14 @@ def verify_x509_csr_signature(csr: x509.CertificateSigningRequest, name: str) ->
     verify_kwargs: dict[str, Any] = {}
 
     if isinstance(public_key, RSAPublicKey):
-        verify_kwargs = {"algorithm": csr.signature_hash_algorithm, "padding": csr.signature_algorithm_parameters}
+        verify_kwargs = {
+            "algorithm": csr.signature_hash_algorithm,
+            "padding": csr.signature_algorithm_parameters,
+        }
     elif isinstance(public_key, EllipticCurvePublicKey):
-        verify_kwargs = {"signature_algorithm": csr.signature_algorithm_parameters}
+        verify_kwargs = {
+            "signature_algorithm": ec.ECDSA(csr.signature_hash_algorithm),
+        }
     elif isinstance(public_key, (Ed25519PublicKey, Ed448PublicKey)):
         pass
     else:
