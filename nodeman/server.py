@@ -64,6 +64,9 @@ class NodemanServer(FastAPI):
 
         self.ca_client: CertificateAuthorityClient | None
 
+        if self.settings.internal_ca and self.settings.step:
+            self.logger.warning("Multiple CAs configured, using internal CA")
+
         if self.settings.internal_ca:
             self.ca_client = self.get_internal_ca_client(self.settings.internal_ca)
         elif self.settings.step:
