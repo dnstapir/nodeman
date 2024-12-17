@@ -154,7 +154,7 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     try:
         ca_response = request.app.ca_client.sign_csr(csr, name)
     except Exception as exc:
-        logger.error("Failed to process CSR for %s", name)
+        logger.error("Failed to process CSR for %s: %s", name, str(exc), exc_info=exc)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
 
     x509_certificate_pem = "".join(
