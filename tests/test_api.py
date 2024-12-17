@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 import pytest
@@ -11,18 +11,20 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from cryptography.x509.oid import NameOID
 from fastapi import status
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
+from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import generate_x509_csr
-from tests.utils import CaTestClient, rekey
+from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_x509_csr
+from tests.utils import generate_ca_certificate, rekey
 
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")
@@ -33,9 +35,21 @@ Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
 settings = Settings()
 
 
+def get_ca_client() -> CertificateAuthorityClient:
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
+    ca_private_key = ec.generate_private_key(ec.SECP256R1())
+    ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
+    validity = timedelta(minutes=10)
+    return InternalCertificateAuthority(
+        issuer_ca_certificate=ca_certificate,
+        issuer_ca_private_key=ca_private_key,
+        validity=validity,
+    )
+
+
 def get_test_client() -> TestClient:
     app = NodemanServer(settings)
-    app.ca_client = CaTestClient()
+    app.ca_client = get_ca_client()
     app.connect_mongodb()
     return TestClient(app)
 
@@ -101,7 +115,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     node_enroll_url = f"{node_url}/enroll"
 
@@ -160,7 +174,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=rekey(data_key), alg=data_alg, protected={"alg": data_alg})
-    renew_request = jws.serialize()
+    renew_request = json.loads(jws.serialize())
 
     response = client.post(f"{node_url}/renew", json=renew_request)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -176,7 +190,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    renew_request = jws.serialize()
+    renew_request = json.loads(jws.serialize())
 
     response = client.post(f"{node_url}/renew", json=renew_request)
     assert response.status_code == status.HTTP_200_OK
@@ -229,7 +243,7 @@ def test_enroll_ed448() -> None:
 
 def test_enroll_rsa() -> None:
     data_key = JWK.generate(kty="RSA", size=2048)
-    x509_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    x509_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
@@ -280,7 +294,7 @@ def test_enroll_bad_hmac_signature() -> None:
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)
@@ -328,7 +342,7 @@ def test_enroll_bad_data_signature() -> None:
     jws = JWS(payload=json.dumps(payload))
     jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
     jws.add_signature(key=bad_data_key, alg=data_alg, protected={"alg": data_alg})
-    enrollment_request = jws.serialize()
+    enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
     response = client.post(url, json=enrollment_request)

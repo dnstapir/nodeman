@@ -32,6 +32,13 @@ class StepSettings(BaseModel):
     provisioner_private_key: FilePath
 
 
+class InternalCaSettings(BaseModel):
+    issuer_ca_certificate: FilePath
+    issuer_ca_private_key: FilePath
+    root_ca_certificate: FilePath | None = None
+    validity_days: int = Field(default=90)
+
+
 class NodesSettings(BaseModel):
     domain: str = Field(default="example.com")
     trusted_keys: FilePath | None = Field(default=None)
@@ -57,9 +64,11 @@ class User(BaseModel):
 
 class Settings(BaseSettings):
     mongodb: MongoDB = Field(default=MongoDB())
-    step: StepSettings | None = None
     otlp: OtlpSettings | None = None
     users: list[User] = Field(default=[])
+
+    step: StepSettings | None = None
+    internal_ca: InternalCaSettings | None = None
 
     nodes: NodesSettings = Field(default=NodesSettings())
 

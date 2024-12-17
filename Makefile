@@ -38,17 +38,20 @@ test-client: test-client-enroll test-client-renew
 
 test-client-enroll:
 	rm -f tls.crt tls-ca.crt tls.key data.json
-	NODEMAN_USERNAME=username NODEMAN_PASSWORD=password poetry run nodeman_client enroll --create
+	NODEMAN_USERNAME=username NODEMAN_PASSWORD=password poetry run nodeman_client --debug enroll --create
 	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
 
 test-client-renew:
 	rm -f tls.crt tls-ca.crt tls.key
-	poetry run nodeman_client renew
+	poetry run nodeman_client --debug renew
 	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
+
+internal_ca:
+	step certificate create root-ca internal_ca_certificate.pem internal_ca_private_key.pem --profile root-ca --insecure --no-password
 
 step:
 	docker compose exec step cat /home/step/certs/root_ca.crt > $(CA_CERT)
