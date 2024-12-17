@@ -50,6 +50,9 @@ test-client-renew:
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
 
+internal_ca:
+	step certificate create root-ca internal_ca_certificate.pem internal_ca_private_key.pem --profile root-ca --insecure --no-password
+
 step:
 	docker compose exec step cat /home/step/certs/root_ca.crt > $(CA_CERT)
 	docker compose exec step cat secrets/password > $(CA_PASSWORD)
