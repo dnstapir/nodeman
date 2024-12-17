@@ -26,7 +26,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
     KEY_USAGE = x509.KeyUsage(
         digital_signature=True,
         content_commitment=False,
-        key_encipherment=False,
+        key_encipherment=True,
         data_encipherment=False,
         key_agreement=False,
         key_cert_sign=False,
