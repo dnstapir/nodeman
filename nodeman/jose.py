@@ -38,6 +38,14 @@ class PublicOKP(BaseJWK):
     x: Base64UrlString
 
 
+class PrivateSymmetric(BaseJWK):
+    """JWK: Private symmetric key"""
+
+    kty: Annotated[str, StringConstraints(pattern=r"^oct$")]
+    k: Base64UrlString
+    alg: str | None = None
+
+
 PublicJwk = PublicRSA | PublicEC | PublicOKP
 
 

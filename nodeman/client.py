@@ -152,10 +152,11 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
 
     create_response = response.json()
     name = create_response["name"]
-    secret = create_response["secret"]
-    logging.info("Created node with name=%s secret=%s", name, secret)
 
-    return NodeBootstrapInformation(name=name, secret=secret)
+    logging.debug("Response: %s", json.dumps(create_response, indent=4))
+    logging.info("Created node with name=%s", name)
+
+    return NodeBootstrapInformation(name=name, key=create_response["key"])
 
 
 def command_delete(args: argparse.Namespace) -> None:
@@ -209,7 +210,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     if args.create:
         node_bootstrap_information = command_create(args)
         name = node_bootstrap_information.name
-        secret = node_bootstrap_information.secret
+        secret = node_bootstrap_information.key.k
     else:
         name = args.name
         secret = args.secret
