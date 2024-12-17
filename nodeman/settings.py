@@ -26,6 +26,7 @@ class MongoDB(BaseModel):
 
 class StepSettings(BaseModel):
     ca_url: AnyHttpUrl
+    ca_server_verify: bool = True
     ca_fingerprint: str | None = None
     ca_fingerprint_file: FilePath | None = None
     provisioner_name: str

@@ -11,14 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.x509.oid import NameOID
 
 from nodeman.internal_ca import InternalCertificateAuthority
-from nodeman.x509 import (
-    RSA_EXPONENT,
-    CertificateInformation,
-    PrivateKey,
-    generate_similar_key,
-    generate_x509_csr,
-    verify_x509_csr_data,
-)
+from nodeman.x509 import RSA_EXPONENT, CertificateInformation, PrivateKey, generate_similar_key, generate_x509_csr
 from tests.utils import generate_ca_certificate
 
 
@@ -49,8 +42,6 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
     key = generate_similar_key(ca_private_key)
     name = "hostname.example.com"
     csr = generate_x509_csr(key=key, name=name)
-
-    verify_x509_csr_data(name=name, csr=csr)
 
     res = ca_client.sign_csr(csr, name)
 

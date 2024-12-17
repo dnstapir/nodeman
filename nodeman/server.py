@@ -109,6 +109,7 @@ class NodemanServer(FastAPI):
             ca_fingerprint=ca_fingerprint,
             provisioner_name=settings.provisioner_name,
             provisioner_jwk=provisioner_jwk,
+            ca_server_verify=settings.ca_server_verify,
         )
         logger.info("Connected to StepCA %s (%s)", res.ca_url, ca_fingerprint)
         return res

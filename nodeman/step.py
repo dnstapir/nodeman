@@ -1,4 +1,5 @@
 import atexit
+import logging
 import os
 import tempfile
 import time
@@ -12,28 +13,44 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jwt import JWT
 
 from .jose import jwk_to_alg
-from .x509 import CertificateAuthorityClient, CertificateInformation
+from .x509 import CertificateAuthorityClient, CertificateInformation, verify_x509_csr
 
 
 class StepClient(CertificateAuthorityClient):
-    def __init__(self, ca_url: str, ca_fingerprint: str, provisioner_name: str, provisioner_jwk: JWK):
+    def __init__(
+        self,
+        ca_url: str,
+        ca_fingerprint: str,
+        provisioner_name: str,
+        provisioner_jwk: JWK,
+        ca_server_verify: bool = True,
+    ):
+        self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self.ca_url = ca_url
         self.ca_fingerprint = ca_fingerprint
         self.provisioner_name = provisioner_name
         self.provisioner_jwk = provisioner_jwk
         self.ca_bundle_filename = self._get_root_ca_cert()
         self.token_ttl = 300
+        self.verify = self.ca_bundle_filename if ca_server_verify else False
 
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
+        """Sign CSR with Step CA"""
+
+        self.logger.debug("Processing CSR from %s", name)
+
+        verify_x509_csr(csr=csr, name=name, validate_name=True)
+
         csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM).decode()
         token = self._get_token(name)
         response = httpx.post(
             urljoin(self.ca_url, "1.0/sign"),
-            verify=self.ca_bundle_filename,
+            verify=self.verify,
             json={"csr": csr_pem, "ott": token},
         )
         response.raise_for_status()
         payload = response.json()
+
         return CertificateInformation(
             cert_chain=[x509.load_pem_x509_certificate(cert.encode()) for cert in payload["certChain"]],
             ca_cert=x509.load_pem_x509_certificate(payload["ca"].encode()),
