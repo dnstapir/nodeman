@@ -237,7 +237,8 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
 
     with open(args.data_jwk_file) as fp:
         data_key = JWK.from_json(fp.read())
-    x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
+
+    x509_key = generate_x509_key(kty=data_key.kty, crv=data_key.crv)
 
     name = data_key.kid or args.name
 
