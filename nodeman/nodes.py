@@ -223,7 +223,7 @@ async def enroll_node(
 
     with tracer.start_as_current_span("verify_jws"):
         jws = JWS()
-        jws.deserialize(json.loads(body.decode()))
+        jws.deserialize(body.decode())
 
         # Verify signature by HMAC key
         try:
@@ -297,8 +297,10 @@ async def renew_node(
 
     with tracer.start_as_current_span("verify_jws"):
         jws = JWS()
-        jws.deserialize(json.loads(body.decode()))
+        jws.deserialize(body.decode())
+
         public_key = JWK(**node.public_key)
+
         # Verify signature by public data key
         try:
             jws.verify(key=public_key)
