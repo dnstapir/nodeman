@@ -80,7 +80,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
-    secret = create_response["secret"]
+    secret = create_response["key"]["k"]
     if requested_name:
         assert name == requested_name
     logging.info("Got name=%s secret=%s", name, secret)
@@ -99,8 +99,8 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     #####################
     # Enroll created node
 
-    hmac_key = JWK(kty="oct", k=secret)
-    hmac_alg = "HS256"
+    hmac_key = JWK(**create_response["key"])
+    hmac_alg = hmac_key.alg
 
     data_alg = jwk_to_alg(data_key)
 
@@ -276,8 +276,10 @@ def test_enroll_bad_hmac_signature() -> None:
     create_response = response.json()
     name = create_response["name"]
 
-    hmac_key = JWK.generate(kty="oct")
-    hmac_alg = "HS256"
+    hmac_key = JWK.generate(kty="oct", size=256, alg="HS256")
+    hmac_alg = hmac_key.alg
+
+    assert hmac_alg == "HS256"
 
     data_key = JWK.generate(kty=kty, crv=crv)
     data_alg = jwk_to_alg(data_key)
@@ -321,10 +323,11 @@ def test_enroll_bad_data_signature() -> None:
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
-    secret = create_response["secret"]
 
-    hmac_key = JWK(kty="oct", k=secret)
-    hmac_alg = "HS256"
+    hmac_key = JWK(**create_response["key"])
+    hmac_alg = hmac_key.alg
+
+    assert hmac_alg == "HS256"
 
     data_key = JWK.generate(kty=kty, crv=crv)
     bad_data_key = JWK.generate(kty=kty, crv=crv)

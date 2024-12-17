@@ -55,11 +55,14 @@ def find_node(name: str) -> TapirNode:
         status.HTTP_201_CREATED: {"model": NodeBootstrapInformation},
     },
     tags=["backend"],
+    response_model_exclude_none=True,
 )
 async def create_node(
     request: Request, username: Annotated[str, Depends(get_current_username)], name: str | None = None
 ) -> NodeBootstrapInformation:
-    secret = JWK.generate(kty="oct", size=256).k
+    """Create node"""
+
+    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
     domain = request.app.settings.nodes.domain
 
     if name is None:
@@ -71,12 +74,13 @@ async def create_node(
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
-    node_secret = TapirNodeSecret(name=node.name, secret=secret).save()
+    TapirNodeSecret(name=node.name, secret=node_enrollment_key.k).save()
 
     nodes_created.add(1, {"creator": username})
 
     logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
-    return NodeBootstrapInformation(name=node.name, secret=node_secret.secret)
+
+    return NodeBootstrapInformation(name=node.name, key=node_enrollment_key.export(as_dict=True, private_key=True))
 
 
 @router.get(
