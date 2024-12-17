@@ -85,7 +85,14 @@ class SubjectAlternativeNameMismatchError(CertificateSigningRequestException):
     pass
 
 
-def verify_x509_csr_data(csr: x509.CertificateSigningRequest, name: str) -> None:
+def verify_x509_csr(csr: x509.CertificateSigningRequest, name: str, validate_name: bool = True) -> None:
+    """Verify X.509 CSR"""
+
+    verify_x509_csr_signature(csr=csr, name=name)
+    verify_x509_csr_data(csr=csr, name=name, validate_name=validate_name)
+
+
+def verify_x509_csr_data(csr: x509.CertificateSigningRequest, name: str, validate_name: bool = True) -> None:
     """Verify X.509 CSR against name"""
 
     # ensure Subject is correct

@@ -18,10 +18,8 @@ from nodeman.x509 import (
     CertificateInformation,
     PrivateKey,
     get_hash_algorithm_from_key,
-    verify_x509_csr_signature,
+    verify_x509_csr,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class InternalCertificateAuthority(CertificateAuthorityClient):
@@ -55,6 +53,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         validity: timedelta | None = None,
         time_skew: timedelta | None = None,
     ):
+        self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self.issuer_ca_certificate = issuer_ca_certificate
         self.issuer_ca_private_key = issuer_ca_private_key
         self.root_ca_certificate = root_ca_certificate or issuer_ca_certificate
@@ -102,9 +101,9 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
     def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
         """Sign CSR with CA private key"""
 
-        logger.debug("Processing CSR from %s", name)
+        self.logger.debug("Processing CSR from %s", name)
 
-        verify_x509_csr_signature(csr=csr, name=name)
+        verify_x509_csr(csr=csr, name=name, validate_name=False)
 
         now = datetime.now(tz=timezone.utc)
 
