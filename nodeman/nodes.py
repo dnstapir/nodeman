@@ -11,7 +11,7 @@ from opentelemetry import metrics, trace
 from pydantic_core import ValidationError
 
 from .authn import get_current_username
-from .db_models import TapirNode, TapirNodeSecret
+from .db_models import TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     EnrollmentRequest,
@@ -74,7 +74,10 @@ async def create_node(
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
-    TapirNodeSecret(name=node.name, secret=node_enrollment_key.k).save()
+    TapirNodeEnrollment(
+        name=node.name,
+        key=node_enrollment_key.export(as_dict=True, private_key=node_enrollment_key.kty == "oct"),
+    ).save()
 
     nodes_created.add(1, {"creator": username})
 
@@ -185,8 +188,8 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
     node.deleted = datetime.now(tz=timezone.utc)
     node.save()
 
-    if node_secret := TapirNodeSecret.objects(name=name).first():
-        node_secret.delete()
+    if node_enrollment := TapirNodeEnrollment.objects(name=name).first():
+        node_enrollment.delete()
 
     logging.info("%s deleted node %s", username, node.name, extra={"username": username, "nodename": node.name})
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -216,12 +219,13 @@ async def enroll_node(
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
 
-    node_secret: TapirNodeSecret | None
-    node_secret = TapirNodeSecret.objects(name=name).first()
-    if node_secret is None:
+    node_enrollment: TapirNodeEnrollment | None
+    node_enrollment = TapirNodeEnrollment.objects(name=name).first()
+    if node_enrollment is None:
         logging.info("Node %s enrollment failed", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment failed")
-    hmac_key = JWK(kty="oct", k=node_secret.secret)
+
+    enrollment_key = JWK(**node_enrollment.key)
 
     body = await request.body()
 
@@ -229,13 +233,13 @@ async def enroll_node(
         jws = JWS()
         jws.deserialize(body.decode())
 
-        # Verify signature by HMAC key
+        # Verify signature by enrollment key
         try:
-            jws.verify(key=hmac_key)
-            logger.debug("Valid HMAC signature from %s", name, extra={"nodename": name})
+            jws.verify(key=enrollment_key)
+            logger.debug("Valid enrollment signature from %s", name, extra={"nodename": name})
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid HMAC signature from %s", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid HMAC signature") from exc
+            logger.warning("Invalid enrollment signature from %s", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid enrollment signature") from exc
 
         try:
             message = EnrollmentRequest.model_validate_json(jws.payload)
@@ -260,7 +264,7 @@ async def enroll_node(
 
     node.activated = datetime.now(tz=timezone.utc)
     node.save()
-    node_secret.delete()
+    node_enrollment.delete()
 
     nodes_enrolled.add(1)
 

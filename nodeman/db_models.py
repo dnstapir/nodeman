@@ -41,3 +41,10 @@ class TapirNodeSecret(Document):
 
     name = StringField(unique=True)
     secret = StringField()
+
+
+class TapirNodeEnrollment(Document):
+    meta = {"collection": "enrollments"}
+
+    name = StringField(unique=True)
+    key = DictField()

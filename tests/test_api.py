@@ -80,10 +80,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
-    secret = create_response["key"]["k"]
+    logging.info("Got name=%s", name)
     if requested_name:
         assert name == requested_name
-    logging.info("Got name=%s secret=%s", name, secret)
 
     node_url = urljoin(server, f"/api/v1/node/{name}")
 
@@ -99,10 +98,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     #####################
     # Enroll created node
 
-    hmac_key = JWK(**create_response["key"])
-    hmac_alg = hmac_key.alg
+    enrollment_key = JWK(**create_response["key"])
 
-    data_alg = jwk_to_alg(data_key)
+    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
@@ -113,7 +111,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     }
 
     jws = JWS(payload=json.dumps(payload))
-    jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
+    jws.add_signature(key=enrollment_key, alg=enrollment_key.alg, protected={"alg": enrollment_key.alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
     enrollment_request = json.loads(jws.serialize())
 
@@ -282,7 +280,7 @@ def test_enroll_bad_hmac_signature() -> None:
     assert hmac_alg == "HS256"
 
     data_key = JWK.generate(kty=kty, crv=crv)
-    data_alg = jwk_to_alg(data_key)
+    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -324,14 +322,10 @@ def test_enroll_bad_data_signature() -> None:
     create_response = response.json()
     name = create_response["name"]
 
-    hmac_key = JWK(**create_response["key"])
-    hmac_alg = hmac_key.alg
+    enrollment_key = JWK(**create_response["key"])
 
-    assert hmac_alg == "HS256"
-
-    data_key = JWK.generate(kty=kty, crv=crv)
-    bad_data_key = JWK.generate(kty=kty, crv=crv)
-    data_alg = jwk_to_alg(data_key)
+    data_key = JWK.generate(kty=kty, crv=crv, alg="EdDSA")
+    bad_data_key = JWK.generate(kty=kty, crv=crv, alg="EdDSA")
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -343,8 +337,8 @@ def test_enroll_bad_data_signature() -> None:
     }
 
     jws = JWS(payload=json.dumps(payload))
-    jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
-    jws.add_signature(key=bad_data_key, alg=data_alg, protected={"alg": data_alg})
+    jws.add_signature(key=enrollment_key, alg=enrollment_key.alg, protected={"alg": enrollment_key.alg})
+    jws.add_signature(key=bad_data_key, alg=bad_data_key.alg, protected={"alg": bad_data_key.alg})
     enrollment_request = json.loads(jws.serialize())
 
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
