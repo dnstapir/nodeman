@@ -36,13 +36,6 @@ class TapirNode(Document):
             logging.debug("Name conflict, trying %d", next_node_idx)
 
 
-class TapirNodeSecret(Document):
-    meta = {"collection": "secrets"}
-
-    name = StringField(unique=True)
-    secret = StringField()
-
-
 class TapirNodeEnrollment(Document):
     meta = {"collection": "enrollments"}
 
