@@ -3,7 +3,7 @@ server =  "mongomock://localhost/nodes"
 
 [nodes]
 domain = "test.dnstapir.se"
-trusted_keys = "tests/trusted_keys.json"
+trusted_jwks = "tests/trusted_jwks.json"
 mqtt_broker = "mqtts://localhost"
 
 [[users]]

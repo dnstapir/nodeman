@@ -88,4 +88,4 @@ class NodeConfiguration(NodeCertificate):
         default={},
         examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
     )
-    trusted_keys: list[PublicJwk] = Field(title="Trusted keys")
+    trusted_jwks: dict[str, list[PublicJwk]] = Field(title="Trusted JWKS")

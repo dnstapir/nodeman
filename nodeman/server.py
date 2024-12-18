@@ -42,15 +42,16 @@ class NodemanServer(FastAPI):
         else:
             self.logger.info("Configured without OpenTelemetry")
 
-        self.trusted_keys = []
-        if filename := self.settings.nodes.trusted_keys:
+        self.trusted_jwks = []
+        if filename := self.settings.nodes.trusted_jwks:
             try:
                 with open(filename) as fp:
-                    self.trusted_keys = JWKSet.from_json(fp.read())
+                    self.trusted_jwks = JWKSet.from_json(fp.read())
             except OSError as exc:
                 logger.error("Failed to read trusted keys from %s", filename)
                 raise exc
-            self.logger.info("Found %d trusted keys", len(self.trusted_keys.get("keys", [])))
+            keys = self.trusted_jwks["keys"] if isinstance(self.trusted_jwks, dict) else []
+            self.logger.info("Found %d trusted keys", len(keys))
         else:
             self.logger.warning("Starting without trusted keys")
 
