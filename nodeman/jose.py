@@ -11,6 +11,7 @@ class BaseJWK(BaseModel):
     """RFC 7517: JSON Web Key (JWK)"""
 
     kty: str = Field(title="Key type")
+    alg: str | None = None
 
 
 class PublicRSA(BaseJWK):
@@ -19,6 +20,12 @@ class PublicRSA(BaseJWK):
     kty: Annotated[str, StringConstraints(pattern=r"^RSA$")]
     n: Base64UrlString
     e: Base64UrlString
+
+
+class PrivateRSA(PublicRSA):
+    d: Base64UrlString
+    p: Base64UrlString
+    q: Base64UrlString
 
 
 class PublicEC(BaseJWK):
@@ -30,6 +37,10 @@ class PublicEC(BaseJWK):
     y: Base64UrlString
 
 
+class PrivateEC(PublicEC):
+    d: Base64UrlString
+
+
 class PublicOKP(BaseJWK):
     """JWK: Public OKP key"""
 
@@ -38,15 +49,19 @@ class PublicOKP(BaseJWK):
     x: Base64UrlString
 
 
+class PrivateOKP(PublicOKP):
+    d: Base64UrlString
+
+
 class PrivateSymmetric(BaseJWK):
     """JWK: Private symmetric key"""
 
     kty: Annotated[str, StringConstraints(pattern=r"^oct$")]
     k: Base64UrlString
-    alg: str | None = None
 
 
 PublicJwk = PublicRSA | PublicEC | PublicOKP
+PrivateJwk = PrivateRSA | PrivateEC | PrivateOKP
 
 
 def public_key_factory(jwk_dict: dict[str, str]) -> PublicJwk:
