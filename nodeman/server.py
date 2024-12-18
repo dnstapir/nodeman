@@ -161,6 +161,8 @@ def main() -> None:
         logging.basicConfig(level=logging.INFO)
         log_level = "info"
 
+    logging_config["root"]["level"] = log_level.upper()
+
     logger.info("Starting Node Manager version %s", __verbose_version__)
     app = NodemanServer(settings=Settings())
 
