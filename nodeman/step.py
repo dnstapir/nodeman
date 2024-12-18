@@ -13,7 +13,7 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jwt import JWT
 
 from .jose import jwk_to_alg
-from .x509 import CertificateAuthorityClient, CertificateInformation, verify_x509_csr
+from .x509 import CertificateAuthorityClient, CertificateInformation, verify_x509_csr_data, verify_x509_csr_signature
 
 
 class StepClient(CertificateAuthorityClient):
@@ -39,7 +39,8 @@ class StepClient(CertificateAuthorityClient):
 
         self.logger.debug("Processing CSR from %s", name)
 
-        verify_x509_csr(csr=csr, name=name, validate_name=True)
+        verify_x509_csr_signature(csr=csr, name=name)
+        verify_x509_csr_data(csr=csr, name=name)
 
         csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM).decode()
         token = self._get_token(name)

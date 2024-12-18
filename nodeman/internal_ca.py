@@ -18,7 +18,7 @@ from nodeman.x509 import (
     CertificateInformation,
     PrivateKey,
     get_hash_algorithm_from_key,
-    verify_x509_csr,
+    verify_x509_csr_signature,
 )
 
 
@@ -103,7 +103,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         self.logger.debug("Processing CSR from %s", name)
 
-        verify_x509_csr(csr=csr, name=name, validate_name=False)
+        verify_x509_csr_signature(csr=csr, name=name)
 
         now = datetime.now(tz=timezone.utc)
 
