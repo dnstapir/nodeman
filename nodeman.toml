@@ -13,7 +13,7 @@ provisioner_private_key ="provisioner_private.json"
 
 [nodes]
 domain = "dev.dnstapir.se"
-trusted_keys = "tests/trusted_keys.json"
+trusted_jwks = "tests/trusted_keys.json"
 mqtt_broker = "mqtts://localhost"
 
 [nodes.mqtt_topics]

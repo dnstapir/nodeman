@@ -42,7 +42,7 @@ class InternalCaSettings(BaseModel):
 
 class NodesSettings(BaseModel):
     domain: str = Field(default="example.com")
-    trusted_keys: FilePath | None = Field(default=None)
+    trusted_jwks: FilePath | None = Field(default=None)
     mqtt_broker: MqttUrl = Field(default="mqtt://localhost")
     mqtt_topics: dict[str, str] = Field(default={})
 

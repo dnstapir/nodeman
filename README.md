@@ -21,7 +21,7 @@ The enrollment response is a dictionary containing at least the following proper
 - `x509_ca_certificate`, X.509 CA Certificate Bundle (PEM)
 - `mqtt_broker`, MQTT broker address (URI)
 - `mqtt_topics`, Dictionary of per application MQTT configuration topic
-- `trusted_keys`, List of JWKs used for signing data from core services
+- `trusted_jwks`, JWKSet with keys used for signing data from core services
 
 
 ## Renewal
