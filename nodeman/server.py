@@ -42,7 +42,7 @@ class NodemanServer(FastAPI):
         else:
             self.logger.info("Configured without OpenTelemetry")
 
-        self.trusted_jwks = []
+        self.trusted_jwks = JWKSet()
         if filename := self.settings.nodes.trusted_jwks:
             try:
                 with open(filename) as fp:
