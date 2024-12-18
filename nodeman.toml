@@ -1,12 +1,23 @@
 [mongodb]
 server =  "mongodb://localhost/nodes"
 
-[step]
+[internal_ca]
+issuer_ca_certificate = "internal_ca_certificate.pem"
+issuer_ca_private_key = "internal_ca_private_key.pem"
+validity_days = 1
+
 ca_url = "https://localhost:9000"
 #ca_fingerprint = "aabb0c2be794316541a6262aa091f4d40533e8436aaf7bd8e8a5e5e42998bd2a"
 ca_fingerprint_file = "root_ca_fingerprint.txt"
 provisioner_name = "test"
 provisioner_private_key ="provisioner_private.json"
+
+#[step]
+#ca_url = "https://localhost:9000"
+##ca_fingerprint = "aabb0c2be794316541a6262aa091f4d40533e8436aaf7bd8e8a5e5e42998bd2a"
+#ca_fingerprint_file = "root_ca_fingerprint.txt"
+#provisioner_name = "test"
+#provisioner_private_key ="provisioner_private.json"
 
 #[vault]
 #server = "http://localhost:8200"
