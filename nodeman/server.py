@@ -50,7 +50,8 @@ class NodemanServer(FastAPI):
             except OSError as exc:
                 logger.error("Failed to read trusted keys from %s", filename)
                 raise exc
-            self.logger.info("Found %d trusted keys", len(self.trusted_jwks.get("keys", [])))
+            keys = self.trusted_jwks["keys"] if isinstance(self.trusted_jwks, dict) else []
+            self.logger.info("Found %d trusted keys", len(keys))
         else:
             self.logger.warning("Starting without trusted keys")
 
