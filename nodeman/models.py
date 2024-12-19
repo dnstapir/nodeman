@@ -72,6 +72,7 @@ class NodeCertificate(BaseModel):
     x509_certificate: str = Field(title="X.509 Client Certificate Bundle")
     x509_ca_certificate: str = Field(title="X.509 CA Certificate Bundle")
     x509_certificate_serial_number: int | None = Field(default=None, exclude=True)
+    x509_certificate_not_valid_after: datetime
 
     @field_validator("x509_certificate", "x509_ca_certificate")
     @classmethod

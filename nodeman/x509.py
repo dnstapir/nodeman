@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509.oid import ExtensionOID, NameOID
 from fastapi import HTTPException, Request, status
 
+from .db_models import TapirCertificate
 from .models import NodeCertificate
 
 RSA_EXPONENT = 65537
@@ -145,6 +146,8 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     x509_certificate_serial_number = x509_certificate.serial_number
     x509_not_valid_after_utc = x509_certificate.not_valid_after_utc.isoformat()
 
+    TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate).save()
+
     logger.info(
         "Issued certificate for name=%s serial=%d not_valid_after=%s",
         name,
@@ -161,6 +164,7 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
         x509_certificate=x509_certificate_pem,
         x509_ca_certificate=x509_ca_certificate_pem,
         x509_certificate_serial_number=x509_certificate_serial_number,
+        x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
     )
 
 
