@@ -2,7 +2,9 @@ import logging
 from contextlib import suppress
 from typing import Self
 
-from mongoengine import DateTimeField, DictField, Document, StringField
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from mongoengine import DateTimeField, DictField, Document, StringField, ValidationError
 from mongoengine.errors import NotUniqueError
 
 from .names import get_deterministic_name, get_random_name
@@ -52,13 +54,32 @@ class TapirCertificate(Document):
         ],
     }
 
-    name = StringField()
+    name = StringField(required=True)
 
-    issuer = StringField()
-    subject = StringField()
-    serial = StringField()
+    issuer = StringField(required=True)
+    subject = StringField(required=True)
+    serial = StringField(required=True)
 
-    not_valid_before = DateTimeField()
-    not_valid_after = DateTimeField()
+    not_valid_before = DateTimeField(required=True)
+    not_valid_after = DateTimeField(required=True)
 
-    certificate = StringField()
+    certificate = StringField(required=True)
+
+    @classmethod
+    def from_x509_certificate(cls, name: str, x509_certificate: x509.Certificate) -> Self:
+        return cls(
+            name=name,
+            issuer=x509_certificate.issuer.rfc4514_string(),
+            subject=x509_certificate.subject.rfc4514_string(),
+            certificate=x509_certificate.public_bytes(serialization.Encoding.PEM).decode(),
+            serial=str(x509_certificate.serial_number),
+            not_valid_before=x509_certificate.not_valid_before_utc,
+            not_valid_after=x509_certificate.not_valid_after_utc,
+        )
+
+    def clean(self):
+        """Validate certificate field format"""
+        try:
+            x509.load_pem_x509_certificate(self.certificate.encode())
+        except ValueError as exc:
+            raise ValidationError("Invalid certificate PEM format") from exc
