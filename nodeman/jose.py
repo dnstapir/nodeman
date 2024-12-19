@@ -2,7 +2,7 @@ from typing import Annotated
 
 from jwcrypto.common import base64url_decode
 from jwcrypto.jwk import JWK
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pydantic.types import StringConstraints
 
 Base64UrlString = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]+$")]
@@ -11,7 +11,8 @@ Base64UrlString = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]+$")]
 class BaseJWK(BaseModel):
     """RFC 7517: JSON Web Key (JWK)"""
 
-    kty: str = Field(title="Key type")
+    kty: str
+    kid: str | None = None
     alg: str | None = None
 
 
@@ -63,6 +64,10 @@ class PrivateSymmetric(BaseJWK):
 
 PublicJwk = PublicRSA | PublicEC | PublicOKP
 PrivateJwk = PrivateRSA | PrivateEC | PrivateOKP
+
+
+class PublicJwks(BaseModel):
+    keys: list[PublicJwk]
 
 
 def public_key_factory(jwk_dict: dict[str, str]) -> PublicJwk:
