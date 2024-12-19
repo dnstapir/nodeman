@@ -19,6 +19,7 @@ from .models import (
     NodeCertificate,
     NodeCollection,
     NodeConfiguration,
+    NodeEnrollmentResult,
     NodeInformation,
     PublicKeyFormat,
     RenewalRequest,
@@ -199,7 +200,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
 @router.post(
     "/api/v1/node/{name}/enroll",
     responses={
-        status.HTTP_200_OK: {"model": NodeConfiguration},
+        status.HTTP_200_OK: {"model": NodeEnrollmentResult},
         status.HTTP_404_NOT_FOUND: {},
     },
     tags=["client"],
@@ -208,7 +209,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
 async def enroll_node(
     name: str,
     request: Request,
-) -> NodeConfiguration:
+) -> NodeEnrollmentResult:
     """Enroll new node"""
 
     node = find_node(name)
@@ -269,7 +270,7 @@ async def enroll_node(
 
     nodes_enrolled.add(1)
 
-    return NodeConfiguration(
+    return NodeEnrollmentResult(
         name=name,
         mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
@@ -332,3 +333,32 @@ async def renew_node(
     nodes_renewed.add(1)
 
     return res
+
+
+@router.get(
+    "/api/v1/node/{name}/configuration",
+    responses={
+        status.HTTP_200_OK: {"model": NodeConfiguration},
+        status.HTTP_404_NOT_FOUND: {},
+    },
+    tags=["client"],
+    response_model_exclude_none=True,
+)
+async def get_node_configuration(
+    name: str,
+    request: Request,
+) -> NodeConfiguration:
+    """Enroll new node"""
+
+    node = find_node(name)
+
+    if not node.activated:
+        logging.debug("Node %s not activated", name, extra={"nodename": name})
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+
+    return NodeConfiguration(
+        name=name,
+        mqtt_broker=request.app.settings.nodes.mqtt_broker,
+        mqtt_topics=request.app.settings.nodes.mqtt_topics,
+        trusted_jwks=request.app.trusted_jwks,
+    )
