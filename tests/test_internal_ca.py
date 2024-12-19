@@ -11,8 +11,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.x509.oid import NameOID
 
 from nodeman.internal_ca import InternalCertificateAuthority
-from nodeman.x509 import RSA_EXPONENT, CertificateInformation, PrivateKey, generate_similar_key, generate_x509_csr
-from tests.utils import generate_ca_certificate
+from nodeman.x509 import (
+    RSA_EXPONENT,
+    CertificateInformation,
+    PrivateKey,
+    generate_ca_certificate,
+    generate_similar_key,
+    generate_x509_csr,
+)
 
 
 def _verify_certification_information(res: CertificateInformation) -> None:

@@ -19,12 +19,16 @@ from jwcrypto.jws import JWS
 from pydantic_settings import SettingsConfigDict
 
 from nodeman.internal_ca import InternalCertificateAuthority
-from nodeman.jose import jwk_to_alg
+from nodeman.jose import generate_similar_jwk, jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_x509_csr
-from tests.utils import generate_ca_certificate, rekey
+from nodeman.x509 import (
+    RSA_EXPONENT,
+    CertificateAuthorityClient,
+    generate_ca_certificate,
+    generate_x509_csr,
+)
 
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")
@@ -171,7 +175,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     }
 
     jws = JWS(payload=json.dumps(payload))
-    jws.add_signature(key=rekey(data_key), alg=data_alg, protected={"alg": data_alg})
+    jws.add_signature(key=generate_similar_jwk(data_key), alg=data_alg, protected={"alg": data_alg})
     renew_request = json.loads(jws.serialize())
 
     response = client.post(f"{node_url}/renew", json=renew_request)
