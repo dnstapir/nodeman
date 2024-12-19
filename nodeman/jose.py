@@ -1,5 +1,6 @@
 from typing import Annotated
 
+from jwcrypto.common import base64url_decode
 from jwcrypto.jwk import JWK
 from pydantic import BaseModel, Field
 from pydantic.types import StringConstraints
@@ -91,3 +92,17 @@ def jwk_to_alg(key: JWK) -> str:
         case ("OKP", "Ed448"):
             return "EdDSA"
     raise ValueError(f"Unsupported key type: {kty}" + (f" with curve: {crv}" if crv else ""))
+
+
+def generate_similar_jwk(key: JWK) -> JWK:
+    """Generate similar JWK"""
+
+    params = {param: key.get(param) for param in ["kty", "crv"] if param in key}
+    match key.get("kty"):
+        case "RSA":
+            params["size"] = key._get_public_key().key_size
+        case "oct":
+            params["size"] = len(base64url_decode(key.k)) * 8
+        case _:
+            pass
+    return JWK.generate(**params)

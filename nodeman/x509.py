@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -33,11 +34,15 @@ class CertificateAuthorityClient(ABC):
 
 
 def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.HashAlgorithm | None:
-    if isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
+    """Get hash algorithm for private key"""
+    if isinstance(key, RSAPrivateKey):
+        return hashes.SHA256()
+    elif isinstance(key, EllipticCurvePrivateKey):
+        return hashes.SHA384() if isinstance(key.curve, ec.SECP384R1) else hashes.SHA256()
+    elif isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
         return None
-    if isinstance(key, EllipticCurvePrivateKey) and isinstance(key.curve, ec.SECP384R1):
-        return hashes.SHA384()
-    return hashes.SHA256()
+    else:
+        raise ValueError("Unsupported private key type")
 
 
 def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequest:
@@ -156,4 +161,50 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
         x509_certificate=x509_certificate_pem,
         x509_ca_certificate=x509_ca_certificate_pem,
         x509_certificate_serial_number=x509_certificate_serial_number,
+    )
+
+
+def generate_ca_certificate(
+    issuer_ca_name: x509.Name,
+    issuer_ca_private_key: PrivateKey,
+    root_ca_name: x509.Name | None = None,
+    root_ca_private_key: PrivateKey | None = None,
+    validity_days: int = 1,
+) -> x509.Certificate:
+    """Generate CA Certificate"""
+
+    now = datetime.now(tz=timezone.utc)
+    validity = timedelta(days=validity_days)
+
+    builder = x509.CertificateBuilder()
+    builder = builder.subject_name(issuer_ca_name)
+    builder = builder.issuer_name(root_ca_name or issuer_ca_name)
+    builder = builder.not_valid_before(now)
+    builder = builder.not_valid_after(now + validity)
+    builder = builder.serial_number(x509.random_serial_number())
+    builder = builder.public_key(issuer_ca_private_key.public_key())
+    builder = builder.add_extension(
+        x509.BasicConstraints(ca=True, path_length=None),
+        critical=True,
+    )
+    builder = builder.add_extension(
+        x509.KeyUsage(
+            digital_signature=True,
+            content_commitment=False,
+            key_encipherment=False,
+            data_encipherment=False,
+            key_agreement=False,
+            key_cert_sign=True,
+            crl_sign=True,
+            encipher_only=False,
+            decipher_only=False,
+        ),
+        critical=True,
+    )
+
+    private_key = root_ca_private_key or issuer_ca_private_key
+
+    return builder.sign(
+        private_key=private_key,
+        algorithm=get_hash_algorithm_from_key(private_key),
     )
