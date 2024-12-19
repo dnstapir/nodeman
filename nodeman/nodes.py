@@ -297,6 +297,7 @@ async def renew_node(
     node = find_node(name)
 
     if not node.activated:
+        logging.debug("Renewal attempt for non-activated node %s", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
 
     span = trace.get_current_span()
