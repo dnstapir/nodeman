@@ -13,12 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-from nodeman.x509 import (
-    CertificateAuthorityClient,
-    CertificateInformation,
-    PrivateKey,
-    verify_x509_csr_signature,
-)
+from nodeman.x509 import CertificateAuthorityClient, CertificateInformation, PrivateKey, verify_x509_csr_signature
 
 
 class InternalCertificateAuthority(CertificateAuthorityClient):
