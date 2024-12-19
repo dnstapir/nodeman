@@ -17,7 +17,6 @@ from nodeman.x509 import (
     CertificateAuthorityClient,
     CertificateInformation,
     PrivateKey,
-    get_hash_algorithm_from_key,
     verify_x509_csr_signature,
 )
 
@@ -59,7 +58,6 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         self.root_ca_certificate = root_ca_certificate or issuer_ca_certificate
         self.time_skew = time_skew or timedelta(minutes=10)
         self.validity = validity or timedelta(days=validity_days)
-        self.signature_hash_algorithm = get_hash_algorithm_from_key(self.issuer_ca_private_key)
 
     @classmethod
     def load(
@@ -128,7 +126,10 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             critical=True,
         )
 
-        certificate = builder.sign(private_key=self.issuer_ca_private_key, algorithm=self.signature_hash_algorithm)
+        certificate = builder.sign(
+            private_key=self.issuer_ca_private_key,
+            algorithm=self.issuer_ca_certificate.signature_hash_algorithm,
+        )
 
         if self.root_ca_certificate != self.issuer_ca_certificate:
             cert_chain = [certificate, self.issuer_ca_certificate]
