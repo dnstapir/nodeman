@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 from pydantic.types import AwareDatetime
 
 from .db_models import TapirNode
-from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, public_key_factory
+from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, PublicJwks, public_key_factory
 from .settings import MqttUrl
 
 MAX_REQUEST_AGE = 300
@@ -88,4 +88,4 @@ class NodeConfiguration(NodeCertificate):
         default={},
         examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
     )
-    trusted_jwks: dict[str, list[PublicJwk]] = Field(title="Trusted JWKS")
+    trusted_jwks: PublicJwks = Field(title="Trusted JWKS")
