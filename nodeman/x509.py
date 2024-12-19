@@ -33,11 +33,15 @@ class CertificateAuthorityClient(ABC):
 
 
 def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.HashAlgorithm | None:
-    if isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
+    """Get hash algorithm for private key"""
+    if isinstance(key, RSAPrivateKey):
+        return hashes.SHA256()
+    elif isinstance(key, EllipticCurvePrivateKey):
+        return hashes.SHA384() if isinstance(key.curve, ec.SECP384R1) else hashes.SHA256()
+    elif isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
         return None
-    if isinstance(key, EllipticCurvePrivateKey) and isinstance(key.curve, ec.SECP384R1):
-        return hashes.SHA384()
-    return hashes.SHA256()
+    else:
+        raise ValueError("Unsupported private key type")
 
 
 def generate_x509_csr(name: str, key: PrivateKey) -> x509.CertificateSigningRequest:
