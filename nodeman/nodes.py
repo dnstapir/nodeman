@@ -276,6 +276,7 @@ async def enroll_node(
         x509_certificate=node_certificate.x509_certificate,
         x509_ca_certificate=node_certificate.x509_ca_certificate,
         x509_certificate_serial_number=node_certificate.x509_certificate_serial_number,
+        x509_certificate_not_valid_after=node_certificate.x509_certificate_not_valid_after,
     )
 
 

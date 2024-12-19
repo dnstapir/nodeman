@@ -41,3 +41,24 @@ class TapirNodeEnrollment(Document):
 
     name = StringField(unique=True)
     key = DictField()
+
+
+class TapirCertificate(Document):
+    meta = {
+        "collection": "certificates",
+        "indexes": [
+            {"fields": ["name"]},
+            {"fields": ["issuer", "serial"], "unique": True},
+        ],
+    }
+
+    name = StringField()
+
+    issuer = StringField()
+    subject = StringField()
+    serial = StringField()
+
+    not_valid_before = DateTimeField()
+    not_valid_after = DateTimeField()
+
+    certificate = StringField()
