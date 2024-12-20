@@ -354,7 +354,7 @@ async def get_node_configuration(
     name: str,
     request: Request,
 ) -> NodeConfiguration:
-    """Enroll new node"""
+    """Get node configuration"""
 
     node = find_node(name)
 
