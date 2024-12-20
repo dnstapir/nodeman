@@ -49,6 +49,15 @@ def find_node(name: str) -> TapirNode:
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
+def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
+    return NodeConfiguration(
+        name=name,
+        mqtt_broker=request.app.settings.nodes.mqtt_broker,
+        mqtt_topics=request.app.settings.nodes.mqtt_topics,
+        trusted_jwks=request.app.trusted_jwks,
+    )
+
+
 @router.post(
     "/api/v1/node",
     status_code=status.HTTP_201_CREATED,
@@ -271,10 +280,7 @@ async def enroll_node(
     nodes_enrolled.add(1)
 
     return NodeEnrollmentResult(
-        name=name,
-        mqtt_broker=request.app.settings.nodes.mqtt_broker,
-        mqtt_topics=request.app.settings.nodes.mqtt_topics,
-        trusted_jwks=request.app.trusted_jwks,
+        **create_node_configuration(name=name, request=request).model_dump(),
         x509_certificate=node_certificate.x509_certificate,
         x509_ca_certificate=node_certificate.x509_ca_certificate,
         x509_certificate_serial_number=node_certificate.x509_certificate_serial_number,
@@ -356,9 +362,4 @@ async def get_node_configuration(
         logging.debug("Node %s not activated", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
 
-    return NodeConfiguration(
-        name=name,
-        mqtt_broker=request.app.settings.nodes.mqtt_broker,
-        mqtt_topics=request.app.settings.nodes.mqtt_topics,
-        trusted_jwks=request.app.trusted_jwks,
-    )
+    return create_node_configuration(name=name, request=request)
