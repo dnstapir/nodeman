@@ -37,6 +37,9 @@ nodes_renewed = meter.create_counter("nodes.renewed", description="The number of
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
 )
+node_configurations_requested = meter.create_counter(
+    "nodes.configurations", description="The number of node configurations requested"
+)
 
 router = APIRouter()
 
@@ -362,4 +365,8 @@ async def get_node_configuration(
         logging.debug("Node %s not activated", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
 
-    return create_node_configuration(name=name, request=request)
+    res = create_node_configuration(name=name, request=request)
+
+    node_configurations_requested.add(1)
+
+    return res
