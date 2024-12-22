@@ -19,6 +19,7 @@ from .models import (
     NodeCertificate,
     NodeCollection,
     NodeConfiguration,
+    NodeEnrollmentResult,
     NodeInformation,
     PublicKeyFormat,
     RenewalRequest,
@@ -36,6 +37,9 @@ nodes_renewed = meter.create_counter("nodes.renewed", description="The number of
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
 )
+node_configurations_requested = meter.create_counter(
+    "nodes.configurations", description="The number of node configurations requested"
+)
 
 router = APIRouter()
 
@@ -46,6 +50,15 @@ def find_node(name: str) -> TapirNode:
         return node
     logging.debug("Node %s not found", name, extra={"nodename": name})
     raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+
+def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
+    return NodeConfiguration(
+        name=name,
+        mqtt_broker=request.app.settings.nodes.mqtt_broker,
+        mqtt_topics=request.app.settings.nodes.mqtt_topics,
+        trusted_jwks=request.app.trusted_jwks,
+    )
 
 
 @router.post(
@@ -199,7 +212,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
 @router.post(
     "/api/v1/node/{name}/enroll",
     responses={
-        status.HTTP_200_OK: {"model": NodeConfiguration},
+        status.HTTP_200_OK: {"model": NodeEnrollmentResult},
         status.HTTP_404_NOT_FOUND: {},
     },
     tags=["client"],
@@ -208,7 +221,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
 async def enroll_node(
     name: str,
     request: Request,
-) -> NodeConfiguration:
+) -> NodeEnrollmentResult:
     """Enroll new node"""
 
     node = find_node(name)
@@ -269,11 +282,8 @@ async def enroll_node(
 
     nodes_enrolled.add(1)
 
-    return NodeConfiguration(
-        name=name,
-        mqtt_broker=request.app.settings.nodes.mqtt_broker,
-        mqtt_topics=request.app.settings.nodes.mqtt_topics,
-        trusted_jwks=request.app.trusted_jwks,
+    return NodeEnrollmentResult(
+        **create_node_configuration(name=name, request=request).model_dump(),
         x509_certificate=node_certificate.x509_certificate,
         x509_ca_certificate=node_certificate.x509_ca_certificate,
         x509_certificate_serial_number=node_certificate.x509_certificate_serial_number,
@@ -330,5 +340,38 @@ async def renew_node(
         res = process_csr_request(csr=x509_csr, name=name, request=request)
 
     nodes_renewed.add(1)
+
+    return res
+
+
+@router.get(
+    "/api/v1/node/{name}/configuration",
+    responses={
+        status.HTTP_200_OK: {"model": NodeConfiguration},
+        status.HTTP_404_NOT_FOUND: {},
+    },
+    tags=["client"],
+    response_model_exclude_none=True,
+)
+async def get_node_configuration(
+    name: str,
+    request: Request,
+    response: Response,
+) -> NodeConfiguration:
+    """Get node configuration"""
+
+    node = find_node(name)
+
+    if not node.activated:
+        logging.debug("Node %s not activated", name, extra={"nodename": name})
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+
+    res = create_node_configuration(name=name, request=request)
+
+    node_configurations_requested.add(1)
+
+    # Cache response for 5 minutes
+    max_age = request.app.settings.nodes.configuration_ttl
+    response.headers["Cache-Control"] = f"public, max-age={max_age}"
 
     return res
