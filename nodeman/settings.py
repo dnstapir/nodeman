@@ -2,11 +2,23 @@ from contextlib import suppress
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
-from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, model_validator
-from pydantic_core import Url
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
-
 from dnstapir.opentelemetry import OtlpSettings
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    Field,
+    FilePath,
+    StringConstraints,
+    UrlConstraints,
+    model_validator,
+)
+from pydantic_core import Url
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+    TomlConfigSettingsSource,
+)
 
 MqttUrl = Annotated[
     Url,
@@ -45,7 +57,12 @@ class NodesSettings(BaseModel):
     trusted_jwks: FilePath | None = Field(default=None)
     mqtt_broker: MqttUrl = Field(default="mqtt://localhost")
     mqtt_topics: dict[str, str] = Field(default={})
-    configuration_ttl: int = Field(default=300)
+    configuration_ttl: int = Field(
+        default=300,
+        gt=0,
+        le=86400,
+        description="Configuration cache TTL in seconds",
+    )
 
 
 class User(BaseModel):
