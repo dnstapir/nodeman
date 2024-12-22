@@ -153,6 +153,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     node_information = response.json()
     print(json.dumps(node_information, indent=4))
     assert node_information["name"] == name
+    assert response.headers.get("Cache-Control") is not None
 
     #####################
     # Get node public key

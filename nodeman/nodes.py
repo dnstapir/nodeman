@@ -356,6 +356,7 @@ async def renew_node(
 async def get_node_configuration(
     name: str,
     request: Request,
+    response: Response,
 ) -> NodeConfiguration:
     """Get node configuration"""
 
@@ -368,5 +369,9 @@ async def get_node_configuration(
     res = create_node_configuration(name=name, request=request)
 
     node_configurations_requested.add(1)
+
+    # Cache response for 5 minutes
+    max_age = request.app.settings.nodes.configuration_ttl
+    response.headers["Cache-Control"] = f"public, max-age={max_age}"
 
     return res

@@ -45,6 +45,7 @@ class NodesSettings(BaseModel):
     trusted_jwks: FilePath | None = Field(default=None)
     mqtt_broker: MqttUrl = Field(default="mqtt://localhost")
     mqtt_topics: dict[str, str] = Field(default={})
+    configuration_ttl: int = Field(default=300)
 
 
 class User(BaseModel):
