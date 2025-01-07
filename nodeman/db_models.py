@@ -1,16 +1,15 @@
 import logging
-from binascii import hexlify
 from contextlib import suppress
 from typing import Self
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509.extensions import ExtensionNotFound
-from cryptography.x509.oid import ExtensionOID, ObjectIdentifier
+from cryptography.x509.oid import ExtensionOID
 from mongoengine import DateTimeField, DictField, Document, StringField, ValidationError
 from mongoengine.errors import NotUniqueError
 
 from .names import get_deterministic_name, get_random_name
+from .x509 import get_x509_extensions_hex
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +70,6 @@ class TapirCertificate(Document):
     authority_key_identifier = StringField()
     subject_key_identifier = StringField()
 
-    @staticmethod
-    def get_ext_hex(x509_certificate: x509.Certificate, oid: ObjectIdentifier) -> str | None:
-        try:
-            ext = x509_certificate.extensions.get_extension_for_oid(oid)
-            return hexlify(ext.value.public_bytes()).decode()
-        except ExtensionNotFound:
-            return None
-
     @classmethod
     def from_x509_certificate(cls, name: str, x509_certificate: x509.Certificate) -> Self:
         return cls(
@@ -89,8 +80,8 @@ class TapirCertificate(Document):
             serial=str(x509_certificate.serial_number),
             not_valid_before=x509_certificate.not_valid_before_utc,
             not_valid_after=x509_certificate.not_valid_after_utc,
-            authority_key_identifier=cls.get_ext_hex(x509_certificate, ExtensionOID.AUTHORITY_KEY_IDENTIFIER),
-            subject_key_identifier=cls.get_ext_hex(x509_certificate, ExtensionOID.SUBJECT_KEY_IDENTIFIER),
+            authority_key_identifier=get_x509_extensions_hex(x509_certificate, ExtensionOID.AUTHORITY_KEY_IDENTIFIER),
+            subject_key_identifier=get_x509_extensions_hex(x509_certificate, ExtensionOID.SUBJECT_KEY_IDENTIFIER),
         )
 
     def clean(self):
