@@ -145,6 +145,16 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert node_information["name"] == name
     assert node_information["activated"] is not None
 
+    #########################
+    # Get node configuration
+
+    response = client.get(f"{node_url}/configuration")
+    assert response.status_code == status.HTTP_200_OK
+    node_information = response.json()
+    print(json.dumps(node_information, indent=4))
+    assert node_information["name"] == name
+    assert response.headers.get("Cache-Control") is not None
+
     #####################
     # Get node public key
 
@@ -152,11 +162,13 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == status.HTTP_200_OK
-    _ = JWK.from_json(response.text)
+    res = JWK.from_json(response.text)
+    assert res.kid == name
 
     response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
     assert response.status_code == status.HTTP_200_OK
-    _ = JWK.from_json(response.text)
+    res = JWK.from_json(response.text)
+    assert res.kid == name
 
     response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.PEM})
     assert response.status_code == status.HTTP_200_OK
