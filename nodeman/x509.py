@@ -1,20 +1,18 @@
 import logging
 from abc import ABC, abstractmethod
+from binascii import hexlify
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
-from cryptography.x509.oid import ExtensionOID, NameOID
-from fastapi import HTTPException, Request, status
-
-from .db_models import TapirCertificate
-from .models import NodeCertificate
+from cryptography.x509.extensions import ExtensionNotFound
+from cryptography.x509.oid import ExtensionOID, NameOID, ObjectIdentifier
 
 RSA_EXPONENT = 65537
 type PrivateKey = RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
@@ -119,6 +117,24 @@ def verify_x509_csr_data(csr: x509.CertificateSigningRequest, name: str) -> None
     logger.info("Verified CSR data for %s", name)
 
 
+def get_x509_extensions_hex(x509_certificate: x509.Certificate, oid: ObjectIdentifier) -> str | None:
+    """
+    Extract and hex-encode an X.509 certificate extension.
+
+    Args:
+        x509_certificate: The certificate to extract from
+        oid: The extension OID to extract
+
+    Returns:
+        Hex-encoded extension value or None if not found
+    """
+    try:
+        ext = x509_certificate.extensions.get_extension_for_oid(oid)
+        return hexlify(ext.value.public_bytes()).decode()
+    except ExtensionNotFound:
+        return None
+
+
 def verify_x509_csr_signature(csr: x509.CertificateSigningRequest, name: str) -> None:
     """Verify X.509 CSR signature"""
 
@@ -126,46 +142,6 @@ def verify_x509_csr_signature(csr: x509.CertificateSigningRequest, name: str) ->
         raise CertificateSigningRequestException("Invalid CSR signature")
 
     logger.info("Verified CSR signature for %s", name)
-
-
-def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:
-    """Verify CSR and issue certificate"""
-
-    try:
-        ca_response = request.app.ca_client.sign_csr(csr, name)
-    except Exception as exc:
-        logger.error("Failed to process CSR for %s: %s", name, str(exc), exc_info=exc)
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
-
-    x509_certificate_pem = "".join(
-        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
-    )
-    x509_ca_certificate_pem = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
-
-    x509_certificate: x509.Certificate = ca_response.cert_chain[0]
-    x509_certificate_serial_number = x509_certificate.serial_number
-    x509_not_valid_after_utc = x509_certificate.not_valid_after_utc.isoformat()
-
-    TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate).save()
-
-    logger.info(
-        "Issued certificate for name=%s serial=%d not_valid_after=%s",
-        name,
-        x509_certificate_serial_number,
-        x509_not_valid_after_utc,
-        extra={
-            "nodename": name,
-            "x509_certificate_serial_number": x509_certificate_serial_number,
-            "not_valid_after": x509_not_valid_after_utc,
-        },
-    )
-
-    return NodeCertificate(
-        x509_certificate=x509_certificate_pem,
-        x509_ca_certificate=x509_ca_certificate_pem,
-        x509_certificate_serial_number=x509_certificate_serial_number,
-        x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
-    )
 
 
 def generate_ca_certificate(

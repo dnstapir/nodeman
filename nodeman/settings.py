@@ -2,23 +2,11 @@ from contextlib import suppress
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
-from dnstapir.opentelemetry import OtlpSettings
-from pydantic import (
-    AnyHttpUrl,
-    BaseModel,
-    Field,
-    FilePath,
-    StringConstraints,
-    UrlConstraints,
-    model_validator,
-)
+from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, model_validator
 from pydantic_core import Url
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-    TomlConfigSettingsSource,
-)
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
+
+from dnstapir.opentelemetry import OtlpSettings
 
 MqttUrl = Annotated[
     Url,

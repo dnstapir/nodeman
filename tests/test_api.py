@@ -23,12 +23,7 @@ from nodeman.jose import generate_similar_jwk, jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import (
-    RSA_EXPONENT,
-    CertificateAuthorityClient,
-    generate_ca_certificate,
-    generate_x509_csr,
-)
+from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_certificate, generate_x509_csr
 
 ADMIN_TEST_NODE_COUNT = 100
 BACKEND_CREDENTIALS = ("username", "password")

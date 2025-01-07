@@ -4,10 +4,12 @@ from typing import Self
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from cryptography.x509.oid import ExtensionOID
 from mongoengine import DateTimeField, DictField, Document, StringField, ValidationError
 from mongoengine.errors import NotUniqueError
 
 from .names import get_deterministic_name, get_random_name
+from .x509 import get_x509_extensions_hex
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,9 @@ class TapirCertificate(Document):
 
     certificate = StringField(required=True)
 
+    authority_key_identifier = StringField()
+    subject_key_identifier = StringField()
+
     @classmethod
     def from_x509_certificate(cls, name: str, x509_certificate: x509.Certificate) -> Self:
         return cls(
@@ -75,6 +80,8 @@ class TapirCertificate(Document):
             serial=str(x509_certificate.serial_number),
             not_valid_before=x509_certificate.not_valid_before_utc,
             not_valid_after=x509_certificate.not_valid_after_utc,
+            authority_key_identifier=get_x509_extensions_hex(x509_certificate, ExtensionOID.AUTHORITY_KEY_IDENTIFIER),
+            subject_key_identifier=get_x509_extensions_hex(x509_certificate, ExtensionOID.SUBJECT_KEY_IDENTIFIER),
         )
 
     def clean(self):

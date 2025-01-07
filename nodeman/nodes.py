@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from cryptography import x509
+from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
@@ -11,7 +12,7 @@ from opentelemetry import metrics, trace
 from pydantic_core import ValidationError
 
 from .authn import get_current_username
-from .db_models import TapirNode, TapirNodeEnrollment
+from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     EnrollmentRequest,
@@ -24,7 +25,6 @@ from .models import (
     PublicKeyFormat,
     RenewalRequest,
 )
-from .x509 import process_csr_request
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,46 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
         mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
         trusted_jwks=request.app.trusted_jwks,
+    )
+
+
+def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:
+    """Verify CSR and issue certificate"""
+
+    try:
+        ca_response = request.app.ca_client.sign_csr(csr, name)
+    except Exception as exc:
+        logger.error("Failed to process CSR for %s: %s", name, str(exc), exc_info=exc)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
+
+    x509_certificate_pem = "".join(
+        [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
+    )
+    x509_ca_certificate_pem = ca_response.ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+
+    x509_certificate: x509.Certificate = ca_response.cert_chain[0]
+    x509_certificate_serial_number = x509_certificate.serial_number
+    x509_not_valid_after_utc = x509_certificate.not_valid_after_utc.isoformat()
+
+    TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate).save()
+
+    logger.info(
+        "Issued certificate for name=%s serial=%d not_valid_after=%s",
+        name,
+        x509_certificate_serial_number,
+        x509_not_valid_after_utc,
+        extra={
+            "nodename": name,
+            "x509_certificate_serial_number": x509_certificate_serial_number,
+            "not_valid_after": x509_not_valid_after_utc,
+        },
+    )
+
+    return NodeCertificate(
+        x509_certificate=x509_certificate_pem,
+        x509_ca_certificate=x509_ca_certificate_pem,
+        x509_certificate_serial_number=x509_certificate_serial_number,
+        x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
     )
 
 
