@@ -14,7 +14,7 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
 from nodeman.jose import jwk_to_alg
-from nodeman.models import NodeBootstrapInformation, NodeCertificate, NodeConfiguration
+from nodeman.models import NodeBootstrapInformation, NodeCertificate, NodeConfiguration, NodeEnrollmentResult
 from nodeman.x509 import generate_x509_csr
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
@@ -53,7 +53,7 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
 
     logging.debug("Response: %s", json.dumps(enrollment_response, indent=4))
 
-    return NodeConfiguration(**enrollment_response)
+    return NodeEnrollmentResult(**enrollment_response)
 
 
 def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCertificate:
