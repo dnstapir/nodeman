@@ -19,7 +19,7 @@ class PublicKeyFormat(StrEnum):
 
     @classmethod
     def from_accept(cls, accept: str | None) -> Self:
-        if accept is None or cls.JWK in accept or "application/json" in accept:
+        if accept is None or cls.JWK in accept or "application/json" in accept or "*/*" in accept:
             return cls.JWK
         elif cls.PEM in accept:
             return cls.PEM
