@@ -1,3 +1,5 @@
+legacy_nodes_directory = "tests/legacy"
+
 [mongodb]
 server =  "mongomock://localhost/nodes"
 
