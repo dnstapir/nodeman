@@ -160,6 +160,11 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     res = JWK.from_json(response.text)
     assert res.kid == name
 
+    response = client.get(public_key_url, headers={"Accept": "*/*"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == name
+
     response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
     assert response.status_code == status.HTTP_200_OK
     res = JWK.from_json(response.text)
