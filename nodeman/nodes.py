@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Annotated
 
 from cryptography import x509
@@ -10,6 +11,8 @@ from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from opentelemetry import metrics, trace
 from pydantic_core import ValidationError
+
+from dnstapir.key_resolver import KEY_ID_VALIDATOR
 
 from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
@@ -49,6 +52,20 @@ def find_node(name: str) -> TapirNode:
     if node := TapirNode.objects(name=name, deleted=None).first():
         return node
     logging.debug("Node %s not found", name, extra={"nodename": name})
+    raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+
+def find_legacy_node(name: str, legacy_nodes_directory: Path) -> TapirNode:
+    """Return node from fallback nodes directory"""
+    try:
+        if not KEY_ID_VALIDATOR.match(name):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+        with open(legacy_nodes_directory / f"{name}.pem", "rb") as fp:
+            public_key = JWK.from_pem(fp.read())
+        logging.info("Returning legacy node %s", name)
+        return TapirNode(name=name, public_key=public_key.export(as_dict=True, private_key=False))
+    except FileNotFoundError:
+        pass
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
@@ -200,7 +217,13 @@ async def get_node_public_key(
 ) -> Response:
     """Get public key (JWK/PEM) for node"""
 
-    node = find_node(name)
+    try:
+        node = find_node(name)
+    except HTTPException as exc:
+        if exc.status_code == 404 and request.app.settings.legacy_nodes_directory:
+            node = find_legacy_node(name, request.app.settings.legacy_nodes_directory)
+        else:
+            raise exc
 
     span = trace.get_current_span()
     span.set_attribute("node.name", name)

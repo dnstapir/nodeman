@@ -2,7 +2,16 @@ from contextlib import suppress
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
-from pydantic import AnyHttpUrl, BaseModel, Field, FilePath, StringConstraints, UrlConstraints, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    DirectoryPath,
+    Field,
+    FilePath,
+    StringConstraints,
+    UrlConstraints,
+    model_validator,
+)
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -78,6 +87,8 @@ class Settings(BaseSettings):
     internal_ca: InternalCaSettings | None = None
 
     nodes: NodesSettings = Field(default=NodesSettings())
+
+    legacy_nodes_directory: DirectoryPath | None = None
 
     model_config = SettingsConfigDict(toml_file="nodeman.toml")
 

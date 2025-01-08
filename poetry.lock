@@ -502,7 +502,7 @@ wmi = ["wmi (>=1.5.1)"]
 
 [[package]]
 name = "dnstapir"
-version = "1.2.0"
+version = "1.2.3"
 description = "DNS TAPIR Python Library"
 optional = false
 python-versions = "^3.11"
@@ -511,7 +511,10 @@ develop = false
 
 [package.dependencies]
 botocore = {version = "^1.35.82", optional = true}
+cryptography = {version = ">=43.0.3", optional = true}
+faas-cache-dict = {version = "^0.5.0", optional = true}
 fastapi = {version = ">=0.115.2", optional = true}
+httpx = {version = ">=0.27.2", optional = true}
 jsonformatter = "^0.3.2"
 opentelemetry-api = {version = "^1.28.1", optional = true}
 opentelemetry-exporter-otlp = {version = "^1.28.1", optional = true}
@@ -519,6 +522,9 @@ opentelemetry-instrumentation-botocore = {version = ">=0.48b0", optional = true}
 opentelemetry-instrumentation-fastapi = {version = ">=0.48b0", optional = true}
 opentelemetry-instrumentation-pymongo = {version = ">=0.48b0", optional = true}
 opentelemetry-instrumentation-redis = {version = ">=0.48b0", optional = true}
+pydantic = {version = "^2.9.2", optional = true}
+pymongo = {version = "^4.10.1", optional = true}
+redis = {version = "^5.1.1", optional = true}
 
 [package.extras]
 keymanager = ["cryptography (>=43.0.3)", "faas-cache-dict (>=0.5.0,<0.6.0)", "httpx (>=0.27.2)", "opentelemetry-api (>=1.28.1,<2.0.0)", "pydantic (>=2.9.2,<3.0.0)", "pymongo (>=4.10.1,<5.0.0)", "redis (>=5.1.1,<6.0.0)"]
@@ -527,8 +533,22 @@ opentelemetry = ["botocore (>=1.35.82,<2.0.0)", "fastapi (>=0.115.2)", "opentele
 [package.source]
 type = "git"
 url = "https://github.com/dnstapir/python-dnstapir.git"
-reference = "v1.2.0"
-resolved_reference = "19f8cac6c0a75376a3a9a1295069e67dc0f97055"
+reference = "v1.2.3"
+resolved_reference = "b6dd5479bcc2ff395bc8e8201c0d35107f653c28"
+
+[[package]]
+name = "faas-cache-dict"
+version = "0.5.0"
+description = "A Python dictionary implementation designed to act as an in-memory cache for FaaS environments"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "faas_cache_dict-0.5.0-py3-none-any.whl", hash = "sha256:13182c746f9676d6182975f5a8735fccb1e94caa6aaeed761eda4fd32b0a4b65"},
+]
+
+[package.dependencies]
+filelock = "3.13.1"
+objsize = "0.7.0"
 
 [[package]]
 name = "fastapi"
@@ -549,6 +569,22 @@ typing-extensions = ">=4.8.0"
 [package.extras]
 all = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.5)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)", "jinja2 (>=2.11.2)", "orjson (>=3.2.1)", "pydantic-extra-types (>=2.0.0)", "pydantic-settings (>=2.0.0)", "python-multipart (>=0.0.7)", "pyyaml (>=5.3.1)", "ujson (>=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0)", "uvicorn[standard] (>=0.12.0)"]
 standard = ["email-validator (>=2.0.0)", "fastapi-cli[standard] (>=0.0.5)", "httpx (>=0.23.0)", "jinja2 (>=2.11.2)", "python-multipart (>=0.0.7)", "uvicorn[standard] (>=0.12.0)"]
+
+[[package]]
+name = "filelock"
+version = "3.13.1"
+description = "A platform independent file lock."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "filelock-3.13.1-py3-none-any.whl", hash = "sha256:57dbda9b35157b05fb3e58ee91448612eb674172fab98ee235ccb0b5bee19a1c"},
+    {file = "filelock-3.13.1.tar.gz", hash = "sha256:521f5f56c50f8426f5e03ad3b281b490a87ef15bc6c526f168290f0c7148d44e"},
+]
+
+[package.extras]
+docs = ["furo (>=2023.9.10)", "sphinx (>=7.2.6)", "sphinx-autodoc-typehints (>=1.24)"]
+testing = ["covdefaults (>=2.3)", "coverage (>=7.3.2)", "diff-cover (>=8)", "pytest (>=7.4.3)", "pytest-cov (>=4.1)", "pytest-mock (>=3.12)", "pytest-timeout (>=2.2)"]
+typing = ["typing-extensions (>=4.8)"]
 
 [[package]]
 name = "googleapis-common-protos"
@@ -890,6 +926,21 @@ python-versions = "*"
 files = [
     {file = "namesgenerator-0.3.tar.gz", hash = "sha256:50a03cc15e95edbf88a7ff86179f217f43eb2b2d6ee30fac3e9a20a54985b72e"},
 ]
+
+[[package]]
+name = "objsize"
+version = "0.7.0"
+description = "Traversal over Python's objects subtree and calculate the total size of the subtree in bytes (deep size)."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "objsize-0.7.0-py3-none-any.whl", hash = "sha256:a8b03ce87477c649a99e6b1920f4eeb8b9ba3f8bc2a94d0e5c06ef68adc334a7"},
+    {file = "objsize-0.7.0.tar.gz", hash = "sha256:d66bbb2a4341803caba84894b5753f9b065ebe1cbf50fd186ae438dfc1ca4729"},
+]
+
+[package.extras]
+dev = ["black", "bumpver", "coveralls", "flake8", "isort", "mypy", "pip-tools", "pylint", "pytest", "pytest-cov", "pyyaml"]
+docs = ["myst-parser", "sphinx", "sphinx-markdown-builder (>=0.6.0)", "sphinx-rtd-dark-mode", "sphinx-rtd-theme"]
 
 [[package]]
 name = "opentelemetry-api"
@@ -1896,4 +1947,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "fce451b869b7a0f2e673e863d495c9881b1b426f0c772d63af191cfef6e1d172"
+content-hash = "8c9609536611a3e985d42acc759d1a7bff59d4274ad5e044a6e44b65a743db8f"

@@ -429,3 +429,26 @@ def test_not_found() -> None:
 
     response = client.get(urljoin(server, f"/api/v1/node/{name}/public_key"), headers={"Accept": PublicKeyFormat.PEM})
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_legacy_node_public_key() -> None:
+    client = get_test_client()
+    name = "legacy"
+    public_key_url = f"/api/v1/node/{name}/public_key"
+
+    response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
+    assert response.status_code == status.HTTP_200_OK
+    _ = JWK.from_json(response.text)
+
+    response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.PEM})
+    assert response.status_code == status.HTTP_200_OK
+    _ = JWK.from_pem(response.text.encode())
+
+
+def test_legacy_node_public_key_invalid_name() -> None:
+    client = get_test_client()
+    name = "räksmörgås"
+    public_key_url = f"/api/v1/node/{name}/public_key"
+
+    response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
