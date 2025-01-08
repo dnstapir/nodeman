@@ -23,7 +23,7 @@ class PublicKeyFormat(StrEnum):
             return cls.JWK
         elif cls.PEM in accept:
             return cls.PEM
-        raise ValueError(f"Unsupported format. Acceptable formats: {[f.value for f in cls]}")
+        raise ValueError(f"Unsupported format. Acceptable formats: {[f.value for f in cls]} or */*")
 
 
 class NodeRequest(BaseModel):
