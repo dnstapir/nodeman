@@ -19,11 +19,14 @@ enduser->>edge: Enrollment key
 edge->>edge: Generate data key
 edge->>edge: Generate X.509 CSR
 
-edge->>nodeman: Enroll new node
+edge->>nodeman: Enroll new node (JWS signed request)
 nodeman-->>edge: Certificate and node configuration
 
-edge->>nodeman: Renew existing node
+edge->>nodeman: Renew existing node (JWS signed request)
 nodeman-->>edge: Certificate
+
+edge->>nodeman: Get node configuration
+nodeman-->>edge: Node configuration
 ```
 
 
