@@ -145,7 +145,11 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
 
     payload = {
         **({"name": args.name} if args.name else {}),
-        **({"tags": args.tags.split(",")} if hasattr(args, "tags") and args.tags else {}),
+        **(
+            {"tags": [tag.strip() for tag in args.tags.split(",") if tag.strip()]}
+            if hasattr(args, "tags") and args.tags
+            else {}
+        ),
     }
 
     try:
