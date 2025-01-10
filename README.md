@@ -5,11 +5,11 @@ This repository contains the DNS TAPIR Node Manager, a server component for mana
 ```mermaid
 sequenceDiagram
 
-participant enduser as Edge Administrator
+actor enduser as Edge Administrator
 participant edge as Edge
 
 participant nodeman as Nodeman
-participant admin as Nodeman Administrator
+actor admin as Nodeman Administrator
 
 admin->>nodeman: Create node
 nodeman-->>admin: Enrollment key
