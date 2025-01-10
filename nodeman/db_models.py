@@ -5,7 +5,7 @@ from typing import Self
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtensionOID
-from mongoengine import DateTimeField, DictField, Document, StringField, ValidationError
+from mongoengine import DateTimeField, DictField, Document, ListField, StringField, ValidationError
 from mongoengine.errors import NotUniqueError
 
 from .names import get_deterministic_name, get_random_name
@@ -23,6 +23,8 @@ class TapirNode(Document):
 
     activated = DateTimeField()
     deleted = DateTimeField()
+
+    tags = ListField(StringField())
 
     @classmethod
     def create_random_node(cls, domain: str) -> Self:

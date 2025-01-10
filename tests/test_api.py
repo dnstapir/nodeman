@@ -68,12 +68,13 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     logging.basicConfig(level=logging.DEBUG)
     logging.debug("Testing enrollment")
 
+    tags = ["test", str(uuid.uuid4())]
+
     #############
     # Create node
 
-    response = admin_client.post(
-        urljoin(server, "/api/v1/node"), params={"name": requested_name} if requested_name else None
-    )
+    node_create_request = {**({"name": requested_name} if requested_name else {}), "tags": tags}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     if response.status_code != status.HTTP_201_CREATED:
         raise FailedToCreateNode
     assert response.status_code == status.HTTP_201_CREATED
@@ -93,6 +94,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     node_information = response.json()
     assert node_information["name"] == name
     assert node_information["activated"] is None
+    assert "test" in node_information["tags"]
 
     #####################
     # Enroll created node
@@ -333,7 +335,7 @@ def test_enroll_bad_data_signature() -> None:
 
     logging.basicConfig(level=logging.DEBUG)
 
-    response = admin_client.post(urljoin(server, "/api/v1/node"))
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json={})
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]

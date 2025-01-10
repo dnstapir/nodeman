@@ -23,6 +23,7 @@ from .models import (
     NodeCertificate,
     NodeCollection,
     NodeConfiguration,
+    NodeCreateRequest,
     NodeEnrollmentResult,
     NodeInformation,
     PublicKeyFormat,
@@ -128,21 +129,34 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     response_model_exclude_none=True,
 )
 async def create_node(
-    request: Request, username: Annotated[str, Depends(get_current_username)], name: str | None = None
+    username: Annotated[str, Depends(get_current_username)],
+    request: Request,
+    create_request: NodeCreateRequest | None = None,
 ) -> NodeBootstrapInformation:
     """Create node"""
 
-    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
+    if create_request:
+        name = create_request.name
+        tags = create_request.tags
+    else:
+        name = None
+        tags = None
+
     domain = request.app.settings.nodes.domain
 
+    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
+
     if name is None:
-        node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
+        node = TapirNode.create_next_node(domain=domain)
     elif name.endswith(f".{domain}"):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+
+    node.tags = tags
+    node.save()
 
     TapirNodeEnrollment(
         name=node.name,

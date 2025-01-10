@@ -26,6 +26,11 @@ class PublicKeyFormat(StrEnum):
         raise ValueError(f"Unsupported format. Acceptable formats: {[f.value for f in cls]} or */*")
 
 
+class NodeCreateRequest(BaseModel):
+    name: str | None = Field(title="Node name", default=None)
+    tags: list[str] | None = Field(title="Node tags", default=None)
+
+
 class NodeRequest(BaseModel):
     timestamp: AwareDatetime = Field(title="Timestamp")
     x509_csr: str = Field(title="X.509 Client Certificate Bundle")
@@ -49,6 +54,7 @@ class NodeInformation(BaseModel):
     name: str = Field(title="Node name")
     public_key: PublicJwk | None = Field(title="Public key")
     activated: AwareDatetime | None = Field(title="Activated")
+    tags: list[str] | None = Field(title="Node tags")
 
     @classmethod
     def from_db_model(cls, node: TapirNode):
@@ -56,6 +62,7 @@ class NodeInformation(BaseModel):
             name=node.name,
             public_key=public_key_factory(node.public_key) if node.public_key else None,
             activated=node.activated,
+            tags=node.tags,
         )
 
 
