@@ -75,6 +75,13 @@ class NodemanServer(FastAPI):
         else:
             self.ca_client = None
 
+        self.generate_enrollment_key_kwargs = self.settings.enrollment.generate_kwargs()
+        logger.debug("Enrollment key kwargs: %s", self.generate_enrollment_key_kwargs)
+
+    def generate_enrollment_key(self) -> JWK:
+        """Generate enrollment key"""
+        return JWK.generate(**self.generate_enrollment_key_kwargs)
+
     @staticmethod
     def get_internal_ca_client(settings: InternalCaSettings) -> InternalCertificateAuthority:
         res = InternalCertificateAuthority.load(
