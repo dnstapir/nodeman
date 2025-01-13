@@ -135,12 +135,8 @@ async def create_node(
 ) -> NodeBootstrapInformation:
     """Create node"""
 
-    if create_request:
-        name = create_request.name
-        tags = create_request.tags
-    else:
-        name = None
-        tags = None
+    name = create_request.name if create_request and create_request.name else None
+    tags = list(set(create_request.tags)) if create_request and create_request.tags else None
 
     domain = request.app.settings.nodes.domain
 
