@@ -140,7 +140,10 @@ async def create_node(
     Args:
         username: The authenticated user creating the node.
         request: The FastAPI request object.
-        create_request: Optional request containing node name and tags.
+        create_request: Optional request containing:
+            - name: Optional hostname (must be a valid domain name)
+            - tags: Optional list of tags (alphanumeric with /, -, or .)
+                    Maximum length: 100 characters per tag
 
     Returns:
         NodeBootstrapInformation: Information needed to bootstrap the node.
