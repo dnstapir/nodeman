@@ -158,7 +158,7 @@ async def create_node(
 
     domain = request.app.settings.nodes.domain
 
-    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
+    node_enrollment_key = request.app.generate_enrollment_key()
 
     if name is None:
         node = TapirNode.create_next_node(domain=domain)

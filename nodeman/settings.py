@@ -2,6 +2,7 @@ from contextlib import suppress
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
+from jwcrypto.jwk import JWK
 from pydantic import (
     AnyHttpUrl,
     BaseModel,
@@ -62,6 +63,41 @@ class NodesSettings(BaseModel):
     )
 
 
+class EnrollmentSettings(BaseModel):
+    kty: str = Field(default="oct")
+    alg: str = Field(default="HS256")
+    crv: str | None = Field(default=None)
+    size: int | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_jwk_parameters(self) -> Self:
+        kwargs = self.generate_kwargs()
+        try:
+            JWK.generate(**kwargs)
+        except Exception as exc:
+            raise ValueError("Invalid enrollment key parameters") from exc
+        return self
+
+    def generate_kwargs(self) -> dict[str, str | int]:
+        match self.kty:
+            case "oct":
+                if self.crv:
+                    raise ValueError(f"Cannot specify curve for {self.kty}")
+                return {"kty": self.kty, "alg": self.alg, "size": self.size or 256}
+            case "RSA":
+                if self.crv:
+                    raise ValueError(f"Cannot specify curve for {self.kty}")
+                return {"kty": self.kty, "alg": self.alg, "size": self.size or 2048}
+            case "EC" | "OKP":
+                if self.crv is None:
+                    raise ValueError("Unknown curve")
+                if self.size:
+                    raise ValueError(f"size not supported for {self.kty}")
+                return {"kty": self.kty, "alg": self.alg, "crv": self.crv}
+            case _:
+                raise ValueError("Unsupported key type")
+
+
 class User(BaseModel):
     username: Annotated[str, StringConstraints(min_length=2, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")]
     password_hash: str
@@ -87,6 +123,7 @@ class Settings(BaseSettings):
     internal_ca: InternalCaSettings | None = None
 
     nodes: NodesSettings = Field(default=NodesSettings())
+    enrollment: EnrollmentSettings = Field(default=EnrollmentSettings())
 
     legacy_nodes_directory: DirectoryPath | None = None
 
