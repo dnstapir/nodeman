@@ -1,9 +1,10 @@
+import re
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Self
+from typing import Annotated, Self
 
 from cryptography.x509 import load_pem_x509_certificates
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 from pydantic.types import AwareDatetime
 
 from .db_models import TapirNode
@@ -11,6 +12,10 @@ from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, PublicJwks, public_ke
 from .settings import MqttUrl
 
 MAX_REQUEST_AGE = 300
+
+DOMAIN_NAME_RE = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
+
+NodeTag = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9/\-\.]{1,100}$")]
 
 
 class PublicKeyFormat(StrEnum):
@@ -27,8 +32,8 @@ class PublicKeyFormat(StrEnum):
 
 
 class NodeCreateRequest(BaseModel):
-    name: str | None = Field(title="Node name", default=None)
-    tags: list[str] | None = Field(title="Node tags", default=None)
+    name: str | None = Field(title="Node name", json_schema_extra={"format": "hostname"}, default=None)
+    tags: list[NodeTag] | None = Field(title="Node tags", max_length=100, default=None)
 
 
 class NodeRequest(BaseModel):

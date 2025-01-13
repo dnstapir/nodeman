@@ -454,3 +454,33 @@ def test_legacy_node_public_key_invalid_name() -> None:
 
     response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_create_node_valid_name() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"name": "hostname.test.dnstapir.se"}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_201_CREATED
+
+
+def test_create_node_invalid_name() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"name": "räksmörgås.test.dnstapir.se"}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_create_node_invalid_tags() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"tags": ["räksmörgås"]}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

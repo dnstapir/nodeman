@@ -18,6 +18,7 @@ from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
+    DOMAIN_NAME_RE,
     EnrollmentRequest,
     NodeBootstrapInformation,
     NodeCertificate,
@@ -144,7 +145,7 @@ async def create_node(
 
     if name is None:
         node = TapirNode.create_next_node(domain=domain)
-    elif name.endswith(f".{domain}"):
+    elif name.endswith(f".{domain}") and DOMAIN_NAME_RE.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:
