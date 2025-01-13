@@ -134,7 +134,20 @@ async def create_node(
     request: Request,
     create_request: NodeCreateRequest | None = None,
 ) -> NodeBootstrapInformation:
-    """Create node"""
+    """
+    Create a new node with optional name and tags.
+
+    Args:
+        username: The authenticated user creating the node.
+        request: The FastAPI request object.
+        create_request: Optional request containing node name and tags.
+
+    Returns:
+        NodeBootstrapInformation: Information needed to bootstrap the node.
+
+    Raises:
+        HTTPException: If the node name is invalid.
+    """
 
     name = create_request.name if create_request and create_request.name else None
     tags = list(set(create_request.tags)) if create_request and create_request.tags else None

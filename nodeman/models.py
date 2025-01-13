@@ -32,8 +32,18 @@ class PublicKeyFormat(StrEnum):
 
 
 class NodeCreateRequest(BaseModel):
-    name: str | None = Field(title="Node name", json_schema_extra={"format": "hostname"}, default=None)
-    tags: list[NodeTag] | None = Field(title="Node tags", max_length=100, default=None)
+    name: str | None = Field(
+        title="Node name",
+        description="Optional hostname for the node. Must be a valid domain name.",
+        json_schema_extra={"format": "hostname"},
+        default=None,
+    )
+    tags: list[NodeTag] | None = Field(
+        title="Node tags",
+        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, or . characters.",
+        max_length=100,
+        default=None,
+    )
 
 
 class NodeRequest(BaseModel):
