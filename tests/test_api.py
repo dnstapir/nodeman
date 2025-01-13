@@ -157,6 +157,12 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_200_OK
     node_certificate = response.json()
     print(json.dumps(node_certificate, indent=4))
+    assert node_certificate["x509_certificate"] == enrollment_response["x509_certificate"]
+    assert isinstance(node_certificate["x509_certificate_serial_number"], str)
+    assert node_certificate["x509_certificate_serial_number"] == enrollment_response["x509_certificate_serial_number"]
+    assert (
+        node_certificate["x509_certificate_not_valid_after"] == enrollment_response["x509_certificate_not_valid_after"]
+    )
 
     #####################
     # Get node public key
