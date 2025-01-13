@@ -18,11 +18,13 @@ from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
+    DOMAIN_NAME_RE,
     EnrollmentRequest,
     NodeBootstrapInformation,
     NodeCertificate,
     NodeCollection,
     NodeConfiguration,
+    NodeCreateRequest,
     NodeEnrollmentResult,
     NodeInformation,
     PublicKeyFormat,
@@ -128,21 +130,46 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     response_model_exclude_none=True,
 )
 async def create_node(
-    request: Request, username: Annotated[str, Depends(get_current_username)], name: str | None = None
+    username: Annotated[str, Depends(get_current_username)],
+    request: Request,
+    create_request: NodeCreateRequest | None = None,
 ) -> NodeBootstrapInformation:
-    """Create node"""
+    """
+    Create a new node with optional name and tags.
 
-    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
+    Args:
+        username: The authenticated user creating the node.
+        request: The FastAPI request object.
+        create_request: Optional request containing:
+            - name: Optional hostname (must be a valid domain name)
+            - tags: Optional list of tags (alphanumeric with /, -, or .)
+                    Maximum length: 100 characters per tag
+
+    Returns:
+        NodeBootstrapInformation: Information needed to bootstrap the node.
+
+    Raises:
+        HTTPException: If the node name is invalid.
+    """
+
+    name = create_request.name if create_request and create_request.name else None
+    tags = list(set(create_request.tags)) if create_request and create_request.tags else None
+
     domain = request.app.settings.nodes.domain
 
+    node_enrollment_key = JWK.generate(kty="oct", size=256, alg="HS256")
+
     if name is None:
-        node = TapirNode.create_next_node(domain=request.app.settings.nodes.domain)
-    elif name.endswith(f".{domain}"):
+        node = TapirNode.create_next_node(domain=domain)
+    elif name.endswith(f".{domain}") and DOMAIN_NAME_RE.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+
+    node.tags = tags
+    node.save()
 
     TapirNodeEnrollment(
         name=node.name,

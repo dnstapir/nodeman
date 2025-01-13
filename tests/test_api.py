@@ -68,12 +68,13 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     logging.basicConfig(level=logging.DEBUG)
     logging.debug("Testing enrollment")
 
+    tags = ["test", str(uuid.uuid4())]
+
     #############
     # Create node
 
-    response = admin_client.post(
-        urljoin(server, "/api/v1/node"), params={"name": requested_name} if requested_name else None
-    )
+    node_create_request = {**({"name": requested_name} if requested_name else {}), "tags": tags}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     if response.status_code != status.HTTP_201_CREATED:
         raise FailedToCreateNode
     assert response.status_code == status.HTTP_201_CREATED
@@ -93,6 +94,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     node_information = response.json()
     assert node_information["name"] == name
     assert node_information["activated"] is None
+    assert "test" in node_information["tags"]
 
     #####################
     # Enroll created node
@@ -333,7 +335,7 @@ def test_enroll_bad_data_signature() -> None:
 
     logging.basicConfig(level=logging.DEBUG)
 
-    response = admin_client.post(urljoin(server, "/api/v1/node"))
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json={})
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
@@ -452,3 +454,33 @@ def test_legacy_node_public_key_invalid_name() -> None:
 
     response = client.get(public_key_url, headers={"Accept": PublicKeyFormat.JWK})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_create_node_valid_name() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"name": "hostname.test.dnstapir.se"}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_201_CREATED
+
+
+def test_create_node_invalid_name() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"name": "räksmörgås.test.dnstapir.se"}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_create_node_invalid_tags() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"tags": ["räksmörgås"]}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

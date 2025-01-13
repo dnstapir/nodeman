@@ -1,9 +1,10 @@
+import re
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Self
+from typing import Annotated, Self
 
 from cryptography.x509 import load_pem_x509_certificates
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 from pydantic.types import AwareDatetime
 
 from .db_models import TapirNode
@@ -11,6 +12,10 @@ from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, PublicJwks, public_ke
 from .settings import MqttUrl
 
 MAX_REQUEST_AGE = 300
+
+DOMAIN_NAME_RE = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
+
+NodeTag = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9/\-\.]{1,100}$")]
 
 
 class PublicKeyFormat(StrEnum):
@@ -24,6 +29,21 @@ class PublicKeyFormat(StrEnum):
         elif cls.PEM in accept:
             return cls.PEM
         raise ValueError(f"Unsupported format. Acceptable formats: {[f.value for f in cls]} or */*")
+
+
+class NodeCreateRequest(BaseModel):
+    name: str | None = Field(
+        title="Node name",
+        description="Optional hostname for the node. Must be a valid domain name.",
+        json_schema_extra={"format": "hostname"},
+        default=None,
+    )
+    tags: list[NodeTag] | None = Field(
+        title="Node tags",
+        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, or . characters.",
+        max_length=100,
+        default=None,
+    )
 
 
 class NodeRequest(BaseModel):
@@ -49,6 +69,7 @@ class NodeInformation(BaseModel):
     name: str = Field(title="Node name")
     public_key: PublicJwk | None = Field(title="Public key")
     activated: AwareDatetime | None = Field(title="Activated")
+    tags: list[str] | None = Field(title="Node tags")
 
     @classmethod
     def from_db_model(cls, node: TapirNode):
@@ -56,6 +77,7 @@ class NodeInformation(BaseModel):
             name=node.name,
             public_key=public_key_factory(node.public_key) if node.public_key else None,
             activated=node.activated,
+            tags=node.tags,
         )
 
 

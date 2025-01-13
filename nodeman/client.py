@@ -143,8 +143,17 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
 
     client = get_admin_client(args)
 
+    payload = {
+        **({"name": args.name} if args.name else {}),
+        **(
+            {"tags": [tag.strip() for tag in args.tags.split(",") if tag.strip()]}
+            if hasattr(args, "tags") and args.tags
+            else {}
+        ),
+    }
+
     try:
-        response = client.post(urljoin(args.server, "/api/v1/node"))
+        response = client.post(urljoin(args.server, "/api/v1/node"), json=payload)
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to create node: %s", str(exc))
@@ -314,6 +323,7 @@ def main() -> None:
     admin_create_parser.set_defaults(func=command_create)
     add_admin_arguments(admin_create_parser)
     admin_create_parser.add_argument("--name", metavar="name", help="Node name")
+    admin_create_parser.add_argument("--tags", metavar="tags", help="Node tags")
 
     admin_get_parser = subparsers.add_parser("get", help="Get node")
     admin_get_parser.set_defaults(func=command_get)
