@@ -40,7 +40,7 @@ nodeman-->>edge: Node configuration
 
 ### Request
 
-The enrollment request is a JWS sign with both the data key (algorithm depending on key algorithm) and the enrollment secret (algorithm `HS256`). JWS payload is a dictionary with the following properties:
+The enrollment request is a JWS signed with both the data key (algorithm depending on key algorithm) and the enrollment secret (algorithm `HS256`). JWS payload is a dictionary with the following properties:
 
 - `timestamp`, A timestamp with the current time (ISO8601)
 - `x509_csr`, A string with a PEM-encoded X.509 Certificate Signing Request with _Common Name_ and _Subject Alternative Name_ set to the full node name.
@@ -61,7 +61,7 @@ The enrollment response is a dictionary containing at least the following proper
 
 ### Request
 
-The renewal request is a JWS sign with the data key (algorithm depending on key algorithm). JWS payload is a dictionary with the following properties:
+The renewal request is a JWS signed with the data key (algorithm depending on key algorithm). JWS payload is a dictionary with the following properties:
 
 - `timestamp`, A timestamp with the current time (ISO8601)
 - `x509_csr`, A string with a PEM-encoded X.509 Certificate Signing Request with _Common Name_ and _Subject Alternative Name_ set to the full node name.
