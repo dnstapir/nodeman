@@ -86,7 +86,7 @@ class NodeCertificate(BaseModel):
         return cls(
             x509_certificate=certificate.certificate,
             x509_ca_certificate=None,
-            x509_certificate_serial_number=certificate.serial,
+            x509_certificate_serial_number=str(certificate.serial),
             x509_certificate_not_valid_after=certificate.not_valid_after,
         )
 
