@@ -6,7 +6,7 @@ from cryptography.x509 import load_pem_x509_certificates
 from pydantic import BaseModel, Field, field_validator
 from pydantic.types import AwareDatetime
 
-from .db_models import TapirNode
+from .db_models import TapirCertificate, TapirNode
 from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, PublicJwks, public_key_factory
 from .settings import MqttUrl
 
@@ -70,15 +70,25 @@ class NodeBootstrapInformation(BaseModel):
 
 class NodeCertificate(BaseModel):
     x509_certificate: str = Field(title="X.509 Client Certificate Bundle")
-    x509_ca_certificate: str = Field(title="X.509 CA Certificate Bundle")
-    x509_certificate_serial_number: int | None = Field(default=None, exclude=True)
+    x509_ca_certificate: str | None = Field(title="X.509 CA Certificate Bundle")
+    x509_certificate_serial_number: str
     x509_certificate_not_valid_after: datetime
 
     @field_validator("x509_certificate", "x509_ca_certificate")
     @classmethod
-    def validate_pem_bundle(cls, v: str):
-        _ = load_pem_x509_certificates(v.encode())
+    def validate_pem_bundle(cls, v: str | None):
+        if v is not None:
+            _ = load_pem_x509_certificates(v.encode())
         return v
+
+    @classmethod
+    def from_db_model(cls, certificate: TapirCertificate):
+        return cls(
+            x509_certificate=certificate.certificate,
+            x509_ca_certificate=None,
+            x509_certificate_serial_number=certificate.serial,
+            x509_certificate_not_valid_after=certificate.not_valid_after,
+        )
 
 
 class NodeConfiguration(BaseModel):

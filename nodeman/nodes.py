@@ -99,7 +99,7 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate).save()
 
     logger.info(
-        "Issued certificate for name=%s serial=%d not_valid_after=%s",
+        "Issued certificate for name=%s serial=%s not_valid_after=%s",
         name,
         x509_certificate_serial_number,
         x509_not_valid_after_utc,
@@ -113,7 +113,7 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
     return NodeCertificate(
         x509_certificate=x509_certificate_pem,
         x509_ca_certificate=x509_ca_certificate_pem,
-        x509_certificate_serial_number=x509_certificate_serial_number,
+        x509_certificate_serial_number=str(x509_certificate_serial_number),
         x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
     )
 
@@ -438,3 +438,24 @@ async def get_node_configuration(
     response.headers["Cache-Control"] = f"public, max-age={max_age}"
 
     return res
+
+
+@router.get(
+    "/api/v1/node/{name}/certificate",
+    responses={
+        status.HTTP_200_OK: {"model": NodeCertificate},
+        status.HTTP_404_NOT_FOUND: {},
+    },
+    tags=["client"],
+    response_model_exclude_none=True,
+)
+async def get_node_certificate(name: str) -> NodeCertificate:
+    """Get node certificate"""
+
+    node = find_node(name)
+
+    if certificate := TapirCertificate.objects(name=node.name).order_by("-_id").first():
+        return NodeCertificate.from_db_model(certificate)
+
+    logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
+    raise HTTPException(status.HTTP_404_NOT_FOUND)
