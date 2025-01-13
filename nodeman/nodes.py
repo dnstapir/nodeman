@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
+from mongoengine import Q
 from opentelemetry import metrics, trace
 from pydantic_core import ValidationError
 
@@ -205,11 +206,18 @@ def get_node_information(name: str, username: Annotated[str, Depends(get_current
         status.HTTP_200_OK: {"model": NodeCollection},
     },
     tags=["backend"],
+    response_model_exclude_none=False,
 )
-def get_all_nodes(username: Annotated[str, Depends(get_current_username)]) -> NodeCollection:
+def get_all_nodes(username: Annotated[str, Depends(get_current_username)], tags: str | None = None) -> NodeCollection:
     """Get all nodes"""
-    logging.info("%s queried for all nodes", username, extra={"username": username})
-    return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(deleted=None)])
+    query = Q(deleted=None)
+    if tags:
+        query_tags = sorted(set(tags.split(",")))
+        logging.info("%s queried for nodes with tags %s", username, query_tags, extra={"username": username})
+        query &= Q(tags__all=sorted(set(query_tags)))
+    else:
+        logging.info("%s queried for all nodes", username, extra={"username": username})
+    return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
 
 
 @router.get(

@@ -26,6 +26,7 @@ from nodeman.settings import Settings
 from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_certificate, generate_x509_csr
 
 ADMIN_TEST_NODE_COUNT = 100
+ADMIN_TEST_NODE_COUNT_TAGS = 10
 BACKEND_CREDENTIALS = ("username", "password")
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
@@ -405,6 +406,35 @@ def test_admin() -> None:
         name = node["name"]
         response = client.delete(f"{server}/api/v1/node/{name}")
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+
+def test_admin_tags() -> None:
+    client = get_test_client()
+    client.auth = BACKEND_CREDENTIALS
+
+    server = ""
+
+    for node_number in range(ADMIN_TEST_NODE_COUNT_TAGS):
+        tags = ["odd"] if node_number % 2 else ["even"]
+        if node_number == 0:
+            tags.append("zero")
+        response = client.post(urljoin(server, "/api/v1/node"), json={"tags": tags})
+        assert response.status_code == status.HTTP_201_CREATED
+
+    # half of the nodes should have tag even
+    response = client.get(urljoin(server, "/api/v1/nodes"), params={"tags": "even"})
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.json()["nodes"]) == ADMIN_TEST_NODE_COUNT_TAGS // 2
+
+    # exactly one node should have tags even & zero
+    response = client.get(urljoin(server, "/api/v1/nodes"), params={"tags": "even,zero"})
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.json()["nodes"]) == 1
+
+    # no nodes should have both tags even & odd
+    response = client.get(urljoin(server, "/api/v1/nodes"), params={"tags": "even,odd"})
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.json()["nodes"]) == 0
 
 
 def test_backend_authentication() -> None:
