@@ -554,6 +554,22 @@ reference = "v1.2.3"
 resolved_reference = "b6dd5479bcc2ff395bc8e8201c0d35107f653c28"
 
 [[package]]
+name = "email-validator"
+version = "2.2.0"
+description = "A robust email address syntax and deliverability validation library."
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "email_validator-2.2.0-py3-none-any.whl", hash = "sha256:561977c2d73ce3611850a06fa56b414621e0c8faa9d66f2611407d87465da631"},
+    {file = "email_validator-2.2.0.tar.gz", hash = "sha256:cb690f344c617a714f22e66ae771445a1ceb46821152df8e165c5f9a364582b7"},
+]
+
+[package.dependencies]
+dnspython = ">=2.0.0"
+idna = ">=2.0.0"
+
+[[package]]
 name = "faas-cache-dict"
 version = "0.5.0"
 description = "A Python dictionary implementation designed to act as an in-memory cache for FaaS environments"
@@ -2029,4 +2045,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "80b9dd487bd84ac8a03c81407a4995dbcc1190942534e39536599de27d66278b"
+content-hash = "f4b3b1354e7f2953b6fc3902df14f6db242cfaf8518bea63792f36ab4a26582e"
