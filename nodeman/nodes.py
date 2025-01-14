@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
+from bson import ObjectId
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -158,7 +159,8 @@ async def create_node(
 
     domain = request.app.settings.nodes.domain
 
-    node_enrollment_key = request.app.generate_enrollment_key()
+    node_enrollment_id = ObjectId()
+    node_enrollment_key = request.app.generate_enrollment_key(kid=str(node_enrollment_id))
 
     if name is None:
         node = TapirNode.create_next_node(domain=domain)
@@ -173,6 +175,7 @@ async def create_node(
     node.save()
 
     TapirNodeEnrollment(
+        id=node_enrollment_id,
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=node_enrollment_key.kty == "oct"),
     ).save()
@@ -348,9 +351,18 @@ async def enroll_node(
         # Verify signature by enrollment key
         try:
             jws.verify(key=enrollment_key)
-            logger.debug("Valid enrollment signature from %s", name, extra={"nodename": name})
+            logger.info(
+                "Valid enrollment signature from %s",
+                name,
+                extra={"nodename": name, "enrollment_key_id": enrollment_key.key_id},
+            )
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid enrollment signature from %s", name, extra={"nodename": name})
+            logger.warning(
+                "Invalid enrollment signature from %s",
+                name,
+                extra={"nodename": name, "enrollment_key_id": enrollment_key.key_id},
+            )
+
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid enrollment signature") from exc
 
         try:
@@ -363,9 +375,13 @@ async def enroll_node(
         # Verify signature by public data key
         try:
             jws.verify(key=public_key)
-            logger.debug("Valid data signature from %s", name, extra={"nodename": name})
+            logger.info(
+                "Valid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
+            )
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
+            logger.warning(
+                "Invalid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
+            )
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         node.public_key = public_key.export(as_dict=True, private_key=False)
 
@@ -423,9 +439,13 @@ async def renew_node(
         # Verify signature by public data key
         try:
             jws.verify(key=public_key)
-            logger.debug("Valid data signature from %s", name, extra={"nodename": name})
+            logger.info(
+                "Valid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
+            )
         except InvalidJWSSignature as exc:
-            logger.warning("Invalid data signature from %s", name, extra={"nodename": name})
+            logger.warning(
+                "Invalid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
+            )
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         try:
             message = RenewalRequest.model_validate_json(jws.payload)
