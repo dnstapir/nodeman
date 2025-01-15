@@ -11,8 +11,9 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import nodeman.extras
 import nodeman.nodes
-from dnstapir.logging import configure_json_logging
+from dnstapir.logging import setup_logging
 from dnstapir.opentelemetry import configure_opentelemetry
+from dnstapir.starlette import LoggingMiddleware
 
 from . import OPENAPI_METADATA, __verbose_version__
 from .internal_ca import InternalCertificateAuthority
@@ -30,9 +31,13 @@ class NodemanServer(FastAPI):
         self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self.settings = settings
         super().__init__(**OPENAPI_METADATA, lifespan=self.lifespan)
+
         self.add_middleware(ProxyHeadersMiddleware)
+        self.add_middleware(LoggingMiddleware)
+
         self.include_router(nodeman.nodes.router)
         self.include_router(nodeman.extras.router)
+
         if self.settings.otlp:
             configure_opentelemetry(
                 service_name="nodeman",
@@ -150,6 +155,7 @@ def main() -> None:
 
     parser.add_argument("--host", help="Host address to bind to", default="0.0.0.0")
     parser.add_argument("--port", help="Port to listen on", type=int, default=8080)
+    parser.add_argument("--log-json", action="store_true", help="Enable JSON logging")
     parser.add_argument("--debug", action="store_true", help="Enable debugging")
     parser.add_argument("--version", action="store_true", help="Show version")
 
@@ -159,16 +165,7 @@ def main() -> None:
         print(f"Node Manager version {__verbose_version__}")
         return
 
-    logging_config = configure_json_logging()
-
-    if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-        log_level = "debug"
-    else:
-        logging.basicConfig(level=logging.INFO)
-        log_level = "info"
-
-    logging_config["root"]["level"] = log_level.upper()
+    setup_logging(json_logs=args.log_json, log_level="DEBUG" if args.debug else "INFO")
 
     logger.info("Starting Node Manager version %s", __verbose_version__)
     app = NodemanServer(settings=Settings())
@@ -177,8 +174,8 @@ def main() -> None:
         app,
         host=args.host,
         port=args.port,
-        log_config=logging_config,
-        log_level=log_level,
+        log_config=None,
+        log_level=None,
         headers=[("server", f"dnstapir-nodeman/{__verbose_version__}")],
     )
 
