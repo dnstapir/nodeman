@@ -53,7 +53,7 @@ class NodemanServer(FastAPI):
                 with open(filename) as fp:
                     self.trusted_jwks = JWKSet.from_json(fp.read())
             except OSError as exc:
-                logger.error("Failed to read trusted keys from %s", filename)
+                self.logger.error("Failed to read trusted keys from %s", filename)
                 raise exc
             keys = self.trusted_jwks["keys"] if isinstance(self.trusted_jwks, dict) else []
             self.logger.info("Found %d trusted keys", len(keys))
@@ -63,8 +63,8 @@ class NodemanServer(FastAPI):
         self.users = {entry.username: entry for entry in settings.users}
         if self.users:
             for username in self.users:
-                logger.debug("Configured user '%s'", username)
-            logger.info("Found %d users", len(self.users))
+                self.logger.debug("Configured user '%s'", username)
+            self.logger.info("Found %d users", len(self.users))
         else:
             self.logger.warning("Starting without users")
 
@@ -81,31 +81,29 @@ class NodemanServer(FastAPI):
             self.ca_client = None
 
         self.generate_enrollment_key_kwargs = self.settings.enrollment.generate_kwargs()
-        logger.debug("Enrollment key kwargs: %s", self.generate_enrollment_key_kwargs)
+        self.logger.debug("Enrollment key kwargs: %s", self.generate_enrollment_key_kwargs)
 
     def generate_enrollment_key(self, kid: str | None = None) -> JWK:
         """Generate enrollment key"""
         return JWK.generate(kid=kid, **self.generate_enrollment_key_kwargs)
 
-    @staticmethod
-    def get_internal_ca_client(settings: InternalCaSettings) -> InternalCertificateAuthority:
+    def get_internal_ca_client(self, settings: InternalCaSettings) -> InternalCertificateAuthority:
         res = InternalCertificateAuthority.load(
             issuer_ca_certificate_file=settings.issuer_ca_certificate,
             issuer_ca_private_key_file=settings.issuer_ca_private_key,
             root_ca_certificate_file=settings.root_ca_certificate,
             validity_days=settings.validity_days,
         )
-        logger.info("Configured Internal CA (%s)", res.ca_fingerprint)
+        self.logger.info("Configured Internal CA (%s)", res.ca_fingerprint)
         return res
 
-    @staticmethod
-    def get_step_client(settings: StepSettings) -> StepClient:
+    def get_step_client(self, settings: StepSettings) -> StepClient:
         if filename := settings.ca_fingerprint_file:
             try:
                 with open(filename) as fp:
                     ca_fingerprint = fp.read().rstrip()
             except OSError as exc:
-                logger.error("Failed to read CA fingerprint file from %s", filename)
+                self.logger.error("Failed to read CA fingerprint file from %s", filename)
                 raise exc
         else:
             ca_fingerprint = settings.ca_fingerprint
@@ -114,7 +112,7 @@ class NodemanServer(FastAPI):
             with open(str(settings.provisioner_private_key)) as fp:
                 provisioner_jwk = JWK.from_json(fp.read())
         except OSError as exc:
-            logger.error("Failed to read CA provisioner private key from %s", settings.provisioner_private_key)
+            self.logger.error("Failed to read CA provisioner private key from %s", settings.provisioner_private_key)
             raise exc
 
         res = StepClient(
@@ -124,7 +122,7 @@ class NodemanServer(FastAPI):
             provisioner_jwk=provisioner_jwk,
             ca_server_verify=settings.ca_server_verify,
         )
-        logger.info("Connected to StepCA %s (%s)", res.ca_url, ca_fingerprint)
+        self.logger.info("Connected to StepCA %s (%s)", res.ca_url, ca_fingerprint)
         return res
 
     def connect_mongodb(self):
@@ -135,9 +133,9 @@ class NodemanServer(FastAPI):
 
                 params["host"] = params["host"].replace("mongomock://", "mongodb://")
                 params["mongo_client_class"] = mongomock.MongoClient
-            logger.info("Connecting to MongoDB %s", params)
+            self.logger.info("Connecting to MongoDB %s", params)
             mongoengine.connect(**params, tz_aware=True)
-            logger.info("MongoDB connected")
+            self.logger.info("MongoDB connected")
 
     @staticmethod
     @asynccontextmanager
