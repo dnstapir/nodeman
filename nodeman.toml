@@ -23,6 +23,7 @@ provisioner_private_key ="provisioner_private.json"
 #server = "http://localhost:8200"
 
 [nodes]
+nodeman_url = "http://localhost:8080"
 domain = "dev.dnstapir.se"
 trusted_jwks = "tests/trusted_jwks.json"
 mqtt_broker = "mqtts://localhost"
@@ -30,6 +31,11 @@ mqtt_broker = "mqtts://localhost"
 [nodes.mqtt_topics]
 tem = "configuration/tem"
 pop = "configuration/pop"
+
+[enrollment]
+kty = "OKP"
+crv = "Ed25519"
+alg = "EdDSA"
 
 #[otlp]
 #spans_endpoint = "http://localhost:4317"

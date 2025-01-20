@@ -81,9 +81,11 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_201_CREATED
     create_response = response.json()
     name = create_response["name"]
+    nodeman_url = create_response["nodeman_url"]
     logging.info("Got name=%s", name)
     if requested_name:
         assert name == requested_name
+    assert "https://" in nodeman_url
 
     node_url = urljoin(server, f"/api/v1/node/{name}")
 
