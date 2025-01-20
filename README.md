@@ -34,12 +34,29 @@ nodeman-->>edge: Node configuration
 ```
 
 
+## Bootstrap Information
+
+
+```json
+{
+    "name": "clever-albattani.dev.dnstapir.se",
+    "key": {
+        "kty": "OKP",
+        "kid": "678e4054dc01bfd30ed2c22a",
+        "alg": "EdDSA",
+        "crv": "Ed25519",
+        "x": "bS8fqjtAhGfPZFRD0huGqejA46lZTPvhk5QunGYWPbc",
+        "d": "O1eqmHabqYSrnh7FyZTzzpYJRsvYFSofTssW_yA5nnk"
+    },
+    "nodeman_url": "http://localhost:8080/"
+}
+```
 
 ## Enrollment
 
 ### Request
 
-The enrollment request is a JWS signed with both the data key (algorithm depending on key algorithm) and the enrollment secret (algorithm `HS256`). JWS payload is a dictionary with the following properties:
+The enrollment request is a JWS signed with both the data and enrollment keys (algorithms depending on key algorithm). JWS payload is a dictionary with the following properties:
 
 - `timestamp`, A timestamp with the current time (ISO8601)
 - `x509_csr`, A string with a PEM-encoded X.509 Certificate Signing Request with _Common Name_ and _Subject Alternative Name_ set to the full node name.

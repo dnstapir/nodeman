@@ -184,7 +184,11 @@ async def create_node(
 
     logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
 
-    return NodeBootstrapInformation(name=node.name, key=node_enrollment_key.export(as_dict=True, private_key=True))
+    return NodeBootstrapInformation(
+        name=node.name,
+        key=node_enrollment_key.export(as_dict=True, private_key=True),
+        nodeman_url=request.app.settings.nodes.nodeman_url,
+    )
 
 
 @router.get(
