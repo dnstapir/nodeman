@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Annotated, Self
 
 from cryptography.x509 import load_pem_x509_certificates
-from pydantic import BaseModel, Field, StringConstraints, field_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, StringConstraints, field_validator
 from pydantic.types import AwareDatetime
 
 from .db_models import TapirCertificate, TapirNode
@@ -88,6 +88,7 @@ class NodeCollection(BaseModel):
 class NodeBootstrapInformation(BaseModel):
     name: str = Field(title="Node name")
     key: PrivateSymmetric | PrivateJwk = Field(title="Enrollment JWK")
+    nodeman_url: AnyHttpUrl | None = Field("Nodeman base URL")
 
 
 class NodeCertificate(BaseModel):

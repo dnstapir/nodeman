@@ -20,10 +20,10 @@ from nodeman.x509 import generate_x509_csr
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
 
-def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: PrivateKey) -> NodeConfiguration:
+def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey) -> NodeConfiguration:
     """Enroll new node"""
 
-    hmac_alg = "HS256"
+    enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
@@ -36,7 +36,7 @@ def enroll(name: str, server: str, hmac_key: JWK, data_key: JWK, x509_key: Priva
     )
 
     jws = JWS(payload=jws_payload)
-    jws.add_signature(key=hmac_key, alg=hmac_alg, protected={"alg": hmac_alg})
+    jws.add_signature(key=enrollment_key, alg=enrollment_alg, protected={"alg": enrollment_alg})
     jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
     enrollment_request = json.loads(jws.serialize())
 
@@ -219,20 +219,19 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     if args.create:
         node_bootstrap_information = command_create(args)
         name = node_bootstrap_information.name
-        secret = node_bootstrap_information.key.k
+        enrollment_key = JWK(**node_bootstrap_information.key.model_dump())
     else:
         name = args.name
-        secret = args.secret
+        enrollment_key = JWK(kty="oct", k=args.secret, alg="HS256")
 
     if not name:
         logging.error("Node name not set")
         raise SystemExit(1)
 
-    hmac_key = JWK(kty="oct", k=secret)
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
     x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
-    result = enroll(name=name, server=args.server, hmac_key=hmac_key, data_key=data_key, x509_key=x509_key)
+    result = enroll(name=name, server=args.server, enrollment_key=enrollment_key, data_key=data_key, x509_key=x509_key)
 
     with open(args.data_jwk_file, "w") as fp:
         fp.write(data_key.export())

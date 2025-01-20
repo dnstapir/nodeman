@@ -51,6 +51,7 @@ class InternalCaSettings(BaseModel):
 
 
 class NodesSettings(BaseModel):
+    nodeman_url: AnyHttpUrl | None = Field(default=None)
     domain: str = Field(default="example.com")
     trusted_jwks: FilePath | None = Field(default=None)
     mqtt_broker: MqttUrl = Field(default="mqtt://localhost")
