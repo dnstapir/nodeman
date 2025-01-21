@@ -35,6 +35,6 @@ jobs:
           pip install poetry
           poetry config virtualenvs.in-project true
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --all-extras
       - name: Pytest
         run: make test
