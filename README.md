@@ -155,3 +155,40 @@ The enrollment response is a dictionary containing at least the following proper
     "x509_certificate_not_valid_after": "2025-01-14T11:47:48Z"
 }
 ```
+
+
+## Configuration File
+
+```toml
+[mongodb]
+server =  "mongodb://localhost/nodeman"
+
+[internal_ca]
+issuer_ca_certificate = "internal_ca_certificate.pem"
+issuer_ca_private_key = "internal_ca_private_key.pem"
+validity_days = 60
+
+[nodes]
+nodeman_url = "https://nodeman.example.com"
+domain = "example.com"
+trusted_jwks = "trusted_jwks.json"
+mqtt_broker = "mqtts://localhost"
+
+[nodes.mqtt_topics]
+tem = "configuration/tem"
+pop = "configuration/pop"
+
+[enrollment]
+kty = "OKP"
+crv = "Ed25519"
+alg = "EdDSA"
+
+[otlp]
+spans_endpoint = "http://localhost:4317"
+metrics_endpoint = "http://localhost:4317"
+insecure = true
+
+[[users]]
+username = "username"
+password_hash = "$argon2id$v=19$m=65536,t=3,p=4$2UbbvL5YpSjGyeha++HE5g$o8iGuvAgrl0azPFDK79mCYQT10nqIGyU1XLipGwL4rc"
+```
