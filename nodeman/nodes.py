@@ -388,6 +388,7 @@ async def enroll_node(
             )
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
         node.public_key = public_key.export(as_dict=True, private_key=False)
+        node.thumbprint = public_key.thumbprint()
 
     # Verify X.509 CSR and issue certificate
     x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
