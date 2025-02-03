@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urljoin
 
 import httpx
@@ -222,7 +223,14 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
         name = node_bootstrap_information.name
         enrollment_key = JWK(**node_bootstrap_information.key.model_dump())
     elif args.file:
-        with open(args.file) as fp:
+        file_path = Path(args.file)
+        if not file_path.exists():
+            logging.error("Enrollment file does not exist: %s", args.file)
+            raise SystemExit(2)
+        if not file_path.is_file():
+            logging.error("Enrollment file is not a file: %s", args.file)
+            raise SystemExit(2)
+        with open(file_path) as fp:
             enrollment_data = json.load(fp)
         try:
             name = enrollment_data["name"]
@@ -353,7 +361,7 @@ def main() -> None:
     enroll_parser = subparsers.add_parser("enroll", help="Enroll new node")
     enroll_parser.add_argument("--create", action="store_true", help="Create node")
     enroll_parser.set_defaults(func=command_enroll)
-    enroll_parser.add_argument("--file", metavar="filename", help="Enrollment file")
+    enroll_parser.add_argument("--file", metavar="filename", help="JSON file containing enrollment data")
     enroll_parser.add_argument("--name", metavar="name", help="Node name")
     enroll_parser.add_argument("--secret", metavar="secret", help="Node secret")
     enroll_parser.add_argument("--kty", metavar="type", help="Key type", default="OKP")
