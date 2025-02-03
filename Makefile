@@ -13,7 +13,7 @@ CA_FINGERPRINT=		root_ca_fingerprint.txt
 CA_PASSWORD=		root_ca_password.txt
 
 STEP_CA_FILES=		$(CA_CERT) $(CA_PASSWORD) $(CA_FINGERPRINT) $(CA_PROVISIONER_FILES)
-CLIENT_FILES=		data.json tls.crt tls.key tls-ca.crt
+CLIENT_FILES=		data.json tls.crt tls.key tls-ca.crt enrollment.json
 
 all: $(DEPENDS)
 
@@ -38,7 +38,8 @@ test-client: test-client-enroll test-client-renew
 
 test-client-enroll:
 	rm -f tls.crt tls-ca.crt tls.key data.json
-	NODEMAN_USERNAME=username NODEMAN_PASSWORD=password poetry run nodeman_client --debug enroll --create
+	curl -X POST --verbose --user username:password -o enrollment.json http://127.0.0.1:8080/api/v1/node
+	poetry run nodeman_client --debug enroll --file enrollment.json
 	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
