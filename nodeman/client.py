@@ -217,10 +217,22 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     """Enroll node"""
 
     if args.create:
+        server = args.server
         node_bootstrap_information = command_create(args)
         name = node_bootstrap_information.name
         enrollment_key = JWK(**node_bootstrap_information.key.model_dump())
+    elif args.file:
+        with open(args.file) as fp:
+            enrollment_data = json.load(fp)
+        try:
+            name = enrollment_data["name"]
+            server = enrollment_data["nodeman_url"]
+            enrollment_key = JWK(**enrollment_data["key"])
+        except Exception as exc:
+            logging.error("Error parsing enrollment file", exc_info=exc)
+            raise SystemExit(2) from exc
     else:
+        server = args.server
         name = args.name
         enrollment_key = JWK(kty="oct", k=args.secret, alg="HS256")
 
@@ -231,7 +243,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
     x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
-    result = enroll(name=name, server=args.server, enrollment_key=enrollment_key, data_key=data_key, x509_key=x509_key)
+    result = enroll(name=name, server=server, enrollment_key=enrollment_key, data_key=data_key, x509_key=x509_key)
 
     with open(args.data_jwk_file, "w") as fp:
         fp.write(data_key.export())
@@ -341,6 +353,7 @@ def main() -> None:
     enroll_parser = subparsers.add_parser("enroll", help="Enroll new node")
     enroll_parser.add_argument("--create", action="store_true", help="Create node")
     enroll_parser.set_defaults(func=command_enroll)
+    enroll_parser.add_argument("--file", metavar="filename", help="Enrollment file")
     enroll_parser.add_argument("--name", metavar="name", help="Node name")
     enroll_parser.add_argument("--secret", metavar="secret", help="Node secret")
     enroll_parser.add_argument("--kty", metavar="type", help="Key type", default="OKP")
