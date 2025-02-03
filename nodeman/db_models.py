@@ -25,6 +25,7 @@ class TapirNode(Document):
     name = StringField(unique=True)
     domain = StringField()
     public_key = DictField()
+    thumbprint = StringField()
 
     activated = DateTimeField()
     deleted = DateTimeField()
