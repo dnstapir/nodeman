@@ -295,6 +295,13 @@ def test_enroll_p256_bad_named_node() -> None:
         _test_enroll(data_key=data_key, x509_key=x509_key, requested_name=requested_name)
 
 
+def test_enroll_p256_name_mismatch() -> None:
+    data_key = JWK.generate(kty="EC", crv="P-256", kid="xyzzy")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+    with pytest.raises(AssertionError):
+        _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
 def test_enroll_bad_hmac_signature() -> None:
     client = get_test_client()
     server = ""
