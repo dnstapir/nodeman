@@ -32,8 +32,8 @@ class NodemanServer(FastAPI):
         self.settings = settings
         super().__init__(**OPENAPI_METADATA, lifespan=self.lifespan)
 
-        self.add_middleware(ProxyHeadersMiddleware, trusted_hosts=[str(x) for x in self.settings.http.trusted_hosts])
         self.add_middleware(LoggingMiddleware)
+        self.add_middleware(ProxyHeadersMiddleware, trusted_hosts=[str(x) for x in self.settings.http.trusted_hosts])
 
         self.include_router(nodeman.nodes.router)
         self.include_router(nodeman.extras.router)
