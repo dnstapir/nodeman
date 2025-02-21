@@ -11,7 +11,7 @@ nodeman_client = "nodeman.client:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-dnstapir = {git = "https://github.com/dnstapir/python-dnstapir.git", rev = "v1.5.0", extras = ["keymanager", "opentelemetry"]}
+dnstapir = {git = "https://github.com/dnstapir/python-dnstapir.git", rev = "v1.5.1", extras = ["keymanager", "opentelemetry"]}
 mongoengine = "^0.29.0"
 fastapi = ">=0.114.0"
 uvicorn = ">=0.30.1"
