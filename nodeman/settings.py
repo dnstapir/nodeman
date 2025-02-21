@@ -13,6 +13,7 @@ from pydantic import (
     UrlConstraints,
     model_validator,
 )
+from pydantic.networks import IPv4Address, IPvAnyAddress, IPvAnyNetwork
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -27,6 +28,10 @@ MongodbUrl = Annotated[
     Url,
     UrlConstraints(allowed_schemes=["mongodb", "mongomock"], default_port=27017, host_required=True),
 ]
+
+
+class HttpSettings(BaseModel):
+    trusted_hosts: list[IPvAnyAddress | IPvAnyNetwork] = Field(default=[IPv4Address("127.0.0.1")])
 
 
 class MongoDB(BaseModel):
@@ -127,6 +132,8 @@ class Settings(BaseSettings):
     enrollment: EnrollmentSettings = Field(default=EnrollmentSettings())
 
     legacy_nodes_directory: DirectoryPath | None = None
+
+    http: HttpSettings = Field(default=HttpSettings())
 
     model_config = SettingsConfigDict(toml_file="nodeman.toml")
 
