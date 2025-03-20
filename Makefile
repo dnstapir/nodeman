@@ -23,7 +23,7 @@ $(BUILDINFO):
 openapi: $(OPENAPI)
 
 $(OPENAPI): $(DEPENDS)
-	poetry run python tools/export_openapi_yaml.py > $@
+	uv run python tools/export_openapi_yaml.py > $@
 
 container: $(DEPENDS)
 	docker buildx build -t $(CONTAINER) -t $(CONTAINER_BASE) .
@@ -32,21 +32,21 @@ push-container:
 	docker push $(CONTAINER)
 
 server: $(DEPENDS)
-	poetry run nodeman_server --host 127.0.0.1 --port 8080 --debug
+	uv run nodeman_server --host 127.0.0.1 --port 8080 --debug
 
 test-client: test-client-enroll test-client-renew
 
 test-client-enroll:
 	rm -f tls.crt tls-ca.crt tls.key data.json
 	curl -X POST --verbose --user username:password -o enrollment.json http://127.0.0.1:8080/api/v1/node
-	poetry run nodeman_client --debug enroll --file enrollment.json
+	uv run nodeman_client --debug enroll --file enrollment.json
 	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
 
 test-client-renew:
 	rm -f tls.crt tls-ca.crt tls.key
-	poetry run nodeman_client --debug renew
+	uv run nodeman_client --debug renew
 	step crypto jwk public < data.json
 	step certificate inspect tls.crt
 	step certificate inspect tls-ca.crt
@@ -79,22 +79,22 @@ clean-step:
 	step ca provisioner list --ca-url $(CA_URL) --root $(CA_CERT)
 
 test: $(DEPENDS)
-	poetry run pytest --ruff --ruff-format
+	uv run pytest --ruff --ruff-format
 
 coverage:
-	poetry run coverage run -m pytest --verbose
-	poetry run coverage html
+	uv run coverage run -m pytest --verbose
+	uv run coverage html
 
 lint:
-	poetry run ruff check .
+	uv run ruff check .
 
 reformat:
-	poetry run ruff check --select I --fix .
-	poetry run ruff format .
+	uv run ruff check --select I --fix .
+	uv run ruff format .
 
 clean:
 	rm -f $(STEP_CA_FILES) $(CLIENT_FILES)
 	rm -f $(BUILDINFO) $(OPENAPI)
 
 realclean: clean
-	poetry env remove --all
+	rm -fr .venv
