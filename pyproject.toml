@@ -8,8 +8,6 @@ requires-python = ">=3.13,<4.0"
 dependencies = [
     "dnstapir[opentelemetry,keymanager]@git+https://github.com/dnstapir/python-dnstapir.git#v1.5.1",
     "argon2-cffi>=23.1.0",
-    "dnspython>=2.7.0",
-    "email-validator>=2.2.0",
     "fastapi>=0.115.11",
     "httpx>=0.28.1",
     "jwcrypto>=1.5.6",
@@ -17,11 +15,8 @@ dependencies = [
     "namesgenerator>=0.3",
     "pydantic>=2.10.6",
     "pydantic-settings>=2.8.1",
-    "pyyaml>=6.0.2",
-    "redis>=5.2.1",
-    "ttlru-map>=1.1.0",
     "uvicorn>=0.34.0",
-    "werkzeug>=3.1.3",
+    "pyyaml>=6.0.2",
 ]
 
 
