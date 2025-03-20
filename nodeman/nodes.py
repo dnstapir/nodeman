@@ -396,11 +396,11 @@ async def enroll_node(
         node.thumbprint = public_key.thumbprint()
 
     # Verify X.509 CSR and issue certificate
-    try:
-        x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
     with tracer.start_as_current_span("issue_certificate"):
+        try:
+            x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
         node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
 
     node.activated = datetime.now(tz=UTC)
@@ -466,11 +466,11 @@ async def renew_node(
             raise HTTPException(status.HTTP_400_BAD_REQUEST) from exc
 
     # Verify X.509 CSR and issue certificate
-    try:
-        x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
     with tracer.start_as_current_span("issue_certificate"):
+        try:
+            x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
         res = process_csr_request(csr=x509_csr, name=name, request=request)
 
     nodes_renewed.add(1)
