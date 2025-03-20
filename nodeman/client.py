@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -32,7 +32,7 @@ def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key:
 
     jws_payload = json.dumps(
         {
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "x509_csr": x509_csr,
             "public_key": data_key.export_public(as_dict=True),
         }
@@ -67,7 +67,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
 
     jws_payload = json.dumps(
         {
-            "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
             "x509_csr": x509_csr,
         }
     )

@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from binascii import hexlify
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -153,7 +153,7 @@ def generate_ca_certificate(
 ) -> x509.Certificate:
     """Generate CA Certificate"""
 
-    now = datetime.now(tz=datetime.UTC)
+    now = datetime.now(tz=UTC)
     validity = timedelta(days=validity_days)
 
     builder = x509.CertificateBuilder()

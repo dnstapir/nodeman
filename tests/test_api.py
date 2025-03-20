@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin
 
 import pytest
@@ -109,7 +109,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {
-        "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "x509_csr": x509_csr,
         "public_key": data_key.export_public(as_dict=True),
     }
@@ -201,7 +201,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
     payload = {
-        "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "x509_csr": x509_csr,
     }
 
@@ -217,7 +217,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
     payload = {
-        "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "x509_csr": x509_csr,
     }
 
@@ -328,7 +328,7 @@ def test_enroll_bad_hmac_signature() -> None:
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {
-        "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "x509_csr": x509_csr,
         "public_key": data_key.export_public(as_dict=True),
     }
@@ -373,7 +373,7 @@ def test_enroll_bad_data_signature() -> None:
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     payload = {
-        "timestamp": datetime.now(tz=datetime.UTC).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "x509_csr": x509_csr,
         "public_key": data_key.export_public(as_dict=True),
     }

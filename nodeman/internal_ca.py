@@ -1,6 +1,6 @@
 import logging
 from binascii import hexlify
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Self
 
@@ -98,7 +98,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         verify_x509_csr_signature(csr=csr, name=name)
 
-        now = datetime.now(tz=datetime.UTC)
+        now = datetime.now(tz=UTC)
 
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]))

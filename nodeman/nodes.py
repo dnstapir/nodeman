@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -304,7 +304,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
         logging.info("Node %s deleted", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
-    node.deleted = datetime.now(tz=datetime.UTC)
+    node.deleted = datetime.now(tz=UTC)
     node.save()
 
     if node_enrollment := TapirNodeEnrollment.objects(name=name).first():
@@ -400,7 +400,7 @@ async def enroll_node(
     with tracer.start_as_current_span("issue_certificate"):
         node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
 
-    node.activated = datetime.now(tz=datetime.UTC)
+    node.activated = datetime.now(tz=UTC)
     node.save()
     node_enrollment.delete()
 
