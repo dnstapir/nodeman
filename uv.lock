@@ -242,12 +242,22 @@ wheels = [
 [[package]]
 name = "dnstapir"
 version = "1.5.1"
-source = { git = "https://github.com/dnstapir/python-dnstapir.git?rev=v1.5.1#dd96a7496e51f09b798fa03ae37272af1daee08d" }
+source = { git = "https://github.com/dnstapir/python-dnstapir.git#d5de3402f664536417d1457acf711c12fd49b0a3" }
 dependencies = [
     { name = "structlog" },
 ]
 
 [package.optional-dependencies]
+keymanager = [
+    { name = "cryptography" },
+    { name = "httpx" },
+    { name = "jwcrypto" },
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "pymongo" },
+    { name = "redis" },
+    { name = "ttlru-map" },
+]
 opentelemetry = [
     { name = "botocore" },
     { name = "fastapi" },
@@ -472,7 +482,7 @@ source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "dnspython" },
-    { name = "dnstapir", extra = ["opentelemetry"] },
+    { name = "dnstapir", extra = ["keymanager", "opentelemetry"] },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -503,7 +513,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=23.1.0" },
     { name = "dnspython", specifier = ">=2.7.0" },
-    { name = "dnstapir", extras = ["opentelemetry", "keyman"], git = "https://github.com/dnstapir/python-dnstapir.git?rev=v1.5.1" },
+    { name = "dnstapir", extras = ["opentelemetry", "keymanager"], git = "https://github.com/dnstapir/python-dnstapir.git" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "fastapi", specifier = ">=0.115.11" },
     { name = "httpx", specifier = ">=0.28.1" },
