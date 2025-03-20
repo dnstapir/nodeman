@@ -20,6 +20,8 @@ from nodeman.x509 import generate_x509_csr
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
+DEFAULT_SERVER = "http://127.0.0.1:8080"
+
 
 def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey) -> NodeConfiguration:
     """Enroll new node"""
@@ -153,8 +155,10 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
         ),
     }
 
+    server = args.server or DEFAULT_SERVER
+
     try:
-        response = client.post(urljoin(args.server, "/api/v1/node"), json=payload)
+        response = client.post(urljoin(server, "/api/v1/node"), json=payload)
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to create node: %s", str(exc))
@@ -174,8 +178,10 @@ def command_delete(args: argparse.Namespace) -> None:
 
     client = get_admin_client(args)
 
+    server = args.server or DEFAULT_SERVER
+
     try:
-        response = client.delete(urljoin(args.server, f"/api/v1/node/{args.name}"))
+        response = client.delete(urljoin(server, f"/api/v1/node/{args.name}"))
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to delete node: %s", str(exc))
@@ -189,8 +195,10 @@ def command_get(args: argparse.Namespace) -> None:
 
     client = get_admin_client(args)
 
+    server = args.server or DEFAULT_SERVER
+
     try:
-        response = client.get(urljoin(args.server, f"/api/v1/node/{args.name}"))
+        response = client.get(urljoin(server, f"/api/v1/node/{args.name}"))
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to get node: %s", str(exc))
@@ -204,8 +212,10 @@ def command_list(args: argparse.Namespace) -> None:
 
     client = get_admin_client(args)
 
+    server = args.server or DEFAULT_SERVER
+
     try:
-        response = client.get(urljoin(args.server, "/api/v1/nodes"))
+        response = client.get(urljoin(server, "/api/v1/nodes"))
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to list nodes: %s", str(exc))
@@ -218,7 +228,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     """Enroll node"""
 
     if args.create:
-        server = args.server
+        server = args.server or DEFAULT_SERVER
         node_bootstrap_information = command_create(args)
         name = node_bootstrap_information.name
         enrollment_key = JWK(**node_bootstrap_information.key.model_dump())
@@ -253,6 +263,8 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
 
     result = enroll(name=name, server=server, enrollment_key=enrollment_key, data_key=data_key, x509_key=x509_key)
 
+    data_key["iss"] = server
+
     with open(args.data_jwk_file, "w") as fp:
         fp.write(data_key.export())
 
@@ -269,13 +281,15 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
 
     x509_key = generate_x509_key(kty=data_key.kty, crv=data_key.crv)
 
+    server = args.server or data_key.get("iss") or DEFAULT_SERVER
+
     name = data_key.kid or args.name
 
     if not name:
         logging.error("Node name not set")
         raise SystemExit(1)
 
-    result = renew(name=name, server=args.server, data_key=data_key, x509_key=x509_key)
+    result = renew(name=name, server=server, data_key=data_key, x509_key=x509_key)
 
     save_x509(args, x509_key, result.x509_certificate, result.x509_ca_certificate)
 
@@ -331,8 +345,7 @@ def main() -> None:
     parser.add_argument(
         "--server",
         metavar="URL",
-        help="Aggregate receiver",
-        default="http://127.0.0.1:8080",
+        help="Nodeman server",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debugging")
 
