@@ -1,6 +1,6 @@
 import logging
 from binascii import hexlify
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
 
@@ -69,7 +69,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         with open(issuer_ca_private_key_file, "rb") as fp:
             issuer_ca_private_key = load_pem_private_key(fp.read(), password=None)
         if not isinstance(
-            issuer_ca_private_key, (RSAPrivateKey, EllipticCurvePrivateKey, Ed25519PrivateKey, Ed448PrivateKey)
+            issuer_ca_private_key, RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
         ):
             raise ValueError("Unsupported private key type")
 
@@ -98,7 +98,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         verify_x509_csr_signature(csr=csr, name=name)
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=datetime.UTC)
 
         builder = x509.CertificateBuilder()
         builder = builder.subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name)]))

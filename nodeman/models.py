@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Self
 
@@ -53,7 +53,7 @@ class NodeRequest(BaseModel):
     @field_validator("timestamp")
     @classmethod
     def validate_timestamp(cls, ts: datetime):
-        if (td := (datetime.now(tz=timezone.utc) - ts).total_seconds()) > MAX_REQUEST_AGE:
+        if (td := (datetime.now(tz=datetime.UTC) - ts).total_seconds()) > MAX_REQUEST_AGE:
             raise ValueError(f"Request too old or in the future, delta={td}")
 
 

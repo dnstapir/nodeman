@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from binascii import hexlify
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes
@@ -38,7 +38,7 @@ def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.HashAlgorithm | None:
         return hashes.SHA256()
     elif isinstance(key, EllipticCurvePrivateKey):
         return hashes.SHA384() if isinstance(key.curve, ec.SECP384R1) else hashes.SHA256()
-    elif isinstance(key, (Ed25519PrivateKey, Ed448PrivateKey)):
+    elif isinstance(key, Ed25519PrivateKey | Ed448PrivateKey):
         return None
     else:
         raise ValueError("Unsupported private key type")
@@ -153,7 +153,7 @@ def generate_ca_certificate(
 ) -> x509.Certificate:
     """Generate CA Certificate"""
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=datetime.UTC)
     validity = timedelta(days=validity_days)
 
     builder = x509.CertificateBuilder()
