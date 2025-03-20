@@ -20,7 +20,7 @@ from nodeman.x509 import generate_x509_csr
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
-DEFAULT_SERVER = "http://127.0.0.1:8080"
+DEFAULT_SERVER = os.environ.get("NODEMAN_SERVER", "http://127.0.0.1:8080")
 
 
 def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey) -> NodeConfiguration:
