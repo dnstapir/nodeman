@@ -11,3 +11,4 @@ dist
 */buildinfo.py
 *.pem
 *-api.yaml
+*.egg-info
