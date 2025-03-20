@@ -1,7 +1,7 @@
 FROM python:3.13 AS builder
 RUN pip3 install uv
 WORKDIR /src
-ADD . /src
+COPY . /src
 RUN uv build
 
 FROM python:3.13
