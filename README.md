@@ -48,7 +48,8 @@ nodeman-->>edge: Node configuration
         "x": "bS8fqjtAhGfPZFRD0huGqejA46lZTPvhk5QunGYWPbc",
         "d": "O1eqmHabqYSrnh7FyZTzzpYJRsvYFSofTssW_yA5nnk"
     },
-    "nodeman_url": "http://localhost:8080/"
+    "nodeman_url": "http://localhost:8080/",
+    "aggrec_url": "http://localhost:8080/"
 }
 ```
 

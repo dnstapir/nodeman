@@ -150,10 +150,12 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     response = client.get(f"{node_url}/configuration")
     assert response.status_code == status.HTTP_200_OK
-    node_information = response.json()
-    print(json.dumps(node_information, indent=4))
-    assert node_information["name"] == name
     assert response.headers.get("Cache-Control") is not None
+    node_configuration = response.json()
+    print(json.dumps(node_configuration, indent=4))
+    assert node_configuration["name"] == name
+    assert node_configuration["nodeman_url"] == str(settings.nodes.nodeman_url)
+    assert node_configuration["aggrec_url"] == str(settings.nodes.aggrec_url)
 
     ######################
     # Get node certificate

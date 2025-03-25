@@ -5,6 +5,7 @@ server =  "mongomock://localhost/nodes"
 
 [nodes]
 nodeman_url = "https://nodeman.test.tapir.se"
+aggrec_url = "https://aggregates.test.tapir.se"
 domain = "test.dnstapir.se"
 trusted_jwks = "tests/trusted_jwks.json"
 mqtt_broker = "mqtts://localhost"

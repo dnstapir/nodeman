@@ -15,6 +15,7 @@ validity_days = 1
 
 [nodes]
 nodeman_url = "http://localhost:8080"
+aggrec_url = "http://localhost:8080"
 domain = "dev.dnstapir.se"
 trusted_jwks = "tests/trusted_jwks.json"
 mqtt_broker = "mqtts://localhost"
