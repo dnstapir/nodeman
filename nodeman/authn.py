@@ -13,14 +13,22 @@ security = HTTPBasic()
 
 verify_password_semaphore = asyncio.Semaphore(PASSWORD_VERIFIERS_LIMIT)
 
+cached_credentials: set[bytes] = set()
+
 
 async def get_current_username(
     request: Request,
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
 ):
     if user := request.app.users.get(credentials.username):
+        credentials_hash = user.get_combined_hash(credentials.password)
+
+        if credentials_hash in cached_credentials:
+            return True
+
         async with verify_password_semaphore:
             if user.verify_password(credentials.password):
+                cached_credentials.add(credentials_hash)
                 return credentials.username
             else:
                 logger.warning("Invalid password for user %s", credentials.username)
