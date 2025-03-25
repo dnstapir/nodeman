@@ -123,8 +123,16 @@ class NodeConfiguration(BaseModel):
         examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
     )
     trusted_jwks: PublicJwks = Field(title="Trusted JWKS")
-    nodeman_url: AnyHttpUrl | None = Field("Nodeman base URL")
-    aggrec_url: AnyHttpUrl | None = Field("Aggregate receiver base URL")
+    nodeman_url: AnyHttpUrl | None = Field(
+        title="Nodeman base URL",
+        default=None,
+        examples=["https://nodeman.example.com"],
+    )
+    aggrec_url: AnyHttpUrl | None = Field(
+        title="Aggregate receiver base URL",
+        default=None,
+        examples=["https://aggrec.example.com"],
+    )
 
 
 class NodeEnrollmentResult(NodeConfiguration, NodeCertificate):
