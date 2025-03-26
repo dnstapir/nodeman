@@ -79,6 +79,8 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
         mqtt_broker=request.app.settings.nodes.mqtt_broker,
         mqtt_topics=request.app.settings.nodes.mqtt_topics,
         trusted_jwks=request.app.trusted_jwks,
+        nodeman_url=request.app.settings.nodes.nodeman_url,
+        aggrec_url=request.app.settings.nodes.aggrec_url,
     )
 
 

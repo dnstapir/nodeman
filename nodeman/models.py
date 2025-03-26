@@ -88,12 +88,12 @@ class NodeCollection(BaseModel):
 class NodeBootstrapInformation(BaseModel):
     name: str = Field(title="Node name")
     key: PrivateSymmetric | PrivateJwk = Field(title="Enrollment JWK")
-    nodeman_url: AnyHttpUrl | None = Field("Nodeman base URL")
+    nodeman_url: AnyHttpUrl | None = Field(title="Nodeman base URL", default=None)
 
 
 class NodeCertificate(BaseModel):
     x509_certificate: str = Field(title="X.509 Client Certificate Bundle")
-    x509_ca_certificate: str | None = Field(title="X.509 CA Certificate Bundle")
+    x509_ca_certificate: str | None = Field(title="X.509 CA Certificate Bundle", default=None)
     x509_certificate_serial_number: str
     x509_certificate_not_valid_after: datetime
 
@@ -123,6 +123,16 @@ class NodeConfiguration(BaseModel):
         examples=[{"edm": "configuration/node.example.com/edm", "pop": "configuration/node.example.com/pop"}],
     )
     trusted_jwks: PublicJwks = Field(title="Trusted JWKS")
+    nodeman_url: AnyHttpUrl | None = Field(
+        title="Nodeman base URL",
+        default=None,
+        examples=["https://nodeman.example.com"],
+    )
+    aggrec_url: AnyHttpUrl | None = Field(
+        title="Aggregate receiver base URL",
+        default=None,
+        examples=["https://aggrec.example.com"],
+    )
 
 
 class NodeEnrollmentResult(NodeConfiguration, NodeCertificate):
