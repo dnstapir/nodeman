@@ -1,3 +1,4 @@
+import hashlib
 from contextlib import suppress
 from typing import Annotated, Self
 
@@ -113,6 +114,14 @@ class User(BaseModel):
         with suppress(Exception):
             return ph.verify(self.password_hash, password)
         return False
+
+    def get_combined_hash(self, password: str) -> bytes:
+        """Return hash of username, password hash and plaintext password"""
+        h = hashlib.sha256()
+        h.update(self.username.encode())
+        h.update(self.password_hash.encode())
+        h.update(password.encode())
+        return h.digest()
 
     @classmethod
     def create(cls, username: str, password: str) -> Self:
