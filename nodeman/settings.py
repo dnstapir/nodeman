@@ -1,4 +1,5 @@
 import hashlib
+import os
 from contextlib import suppress
 from typing import Annotated, Self
 
@@ -19,6 +20,8 @@ from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
 from dnstapir.opentelemetry import OtlpSettings
+
+CONFIG_FILE = os.environ.get("NODEMAN_CONFIG", "nodeman.toml")
 
 MqttUrl = Annotated[
     Url,
@@ -145,7 +148,7 @@ class Settings(BaseSettings):
 
     http: HttpSettings = Field(default=HttpSettings())
 
-    model_config = SettingsConfigDict(toml_file="nodeman.toml")
+    model_config = SettingsConfigDict(toml_file=CONFIG_FILE)
 
     @model_validator(mode="after")
     def validate_unique_usernames(self) -> Self:
