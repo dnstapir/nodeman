@@ -25,7 +25,7 @@ CONFIG_FILE = os.environ.get("NODEMAN_CONFIG", "nodeman.toml")
 
 MqttUrl = Annotated[
     Url,
-    UrlConstraints(allowed_schemes=["mqtt", "mqtts"], default_port=1883, host_required=True),
+    UrlConstraints(allowed_schemes=["mqtt", "mqtts"], host_required=True),
 ]
 
 MongodbUrl = Annotated[
