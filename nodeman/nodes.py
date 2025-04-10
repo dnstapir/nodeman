@@ -134,7 +134,7 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
 )
 def healthcheck(
     request: Request,
-) -> None:
+) -> HealthcheckResult:
     """Perform healthcheck with database and CA access"""
 
     node_count = len(TapirNode.objects() or [])
