@@ -22,6 +22,7 @@ from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_RE,
     EnrollmentRequest,
+    HealthcheckResult,
     NodeBootstrapInformation,
     NodeCertificate,
     NodeCollection,
@@ -121,6 +122,29 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
         x509_ca_certificate=x509_ca_certificate_pem,
         x509_certificate_serial_number=str(x509_certificate_serial_number),
         x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
+    )
+
+
+@router.get(
+    "/api/v1/healthcheck",
+    responses={
+        status.HTTP_200_OK: {"model": HealthcheckResult},
+    },
+    tags=["backend"],
+)
+def healthcheck(
+    request: Request,
+) -> None:
+    """Perform healthcheck with database and CA access"""
+
+    node_count = len(TapirNode.objects() or [])
+    cert_count = len(TapirCertificate.objects() or [])
+
+    return HealthcheckResult(
+        status="OK",
+        node_count=node_count,
+        cert_count=cert_count,
+        ca_fingerprint=request.app.ca_client.ca_fingerprint,
     )
 
 

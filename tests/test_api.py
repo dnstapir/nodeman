@@ -539,3 +539,11 @@ def test_create_node_invalid_tags() -> None:
     node_create_request = {"tags": ["räksmörgås"]}
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def test_healthcehck() -> None:
+    admin_client = get_test_client()
+    server = ""
+
+    response = admin_client.get(urljoin(server, "/api/v1/healthcheck"))
+    assert response.status_code == status.HTTP_200_OK
