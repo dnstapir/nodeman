@@ -135,16 +135,30 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
 def healthcheck(
     request: Request,
 ) -> HealthcheckResult:
-    """Perform healthcheck with database and CA access"""
+    """Perform healthcheck with database and S3 access"""
 
-    node_count = len(TapirNode.objects() or [])
-    cert_count = len(TapirCertificate.objects() or [])
+    try:
+        node_count = len(TapirNode.objects() or [])
+        cert_count = len(TapirCertificate.objects() or [])
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to connect to MongoDB",
+        ) from exc
+
+    try:
+        ca_fingerprint = request.app.ca_client.ca_fingerprint
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to connect to CA",
+        ) from exc
 
     return HealthcheckResult(
         status="OK",
         node_count=node_count,
         cert_count=cert_count,
-        ca_fingerprint=request.app.ca_client.ca_fingerprint,
+        ca_fingerprint=ca_fingerprint,
     )
 
 
