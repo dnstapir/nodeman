@@ -138,8 +138,8 @@ def healthcheck(
     """Perform healthcheck with database and S3 access"""
 
     try:
-        node_count = len(TapirNode.objects() or [])
-        cert_count = len(TapirCertificate.objects() or [])
+        node_count = TapirNode.objects().count()
+        cert_count = TapirCertificate.objects().count()
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
