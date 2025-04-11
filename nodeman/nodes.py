@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 from datetime import UTC, datetime
@@ -136,6 +137,12 @@ def healthcheck(
     request: Request,
 ) -> HealthcheckResult:
     """Perform healthcheck with database and S3 access"""
+
+    if ipaddress.ip_address(request.client.host) not in request.app.settings.http.healthcheck_hosts:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not my doctor",
+        )
 
     try:
         node_count = TapirNode.objects().count()

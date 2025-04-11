@@ -1,6 +1,7 @@
 import hashlib
 import os
 from contextlib import suppress
+from ipaddress import IPv4Address, IPv4Network
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
@@ -15,7 +16,7 @@ from pydantic import (
     UrlConstraints,
     model_validator,
 )
-from pydantic.networks import IPv4Address, IPvAnyAddress, IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 from pydantic_core import Url
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
 
@@ -35,7 +36,19 @@ MongodbUrl = Annotated[
 
 
 class HttpSettings(BaseModel):
-    trusted_hosts: list[IPvAnyAddress | IPvAnyNetwork] = Field(default=[IPv4Address("127.0.0.1")])
+    trusted_hosts: list[IPvAnyAddress | IPvAnyNetwork] = Field(
+        default=[
+            IPv4Address("127.0.0.1"),
+        ]
+    )
+    healthcheck_hosts: list[IPvAnyAddress | IPvAnyNetwork] = Field(
+        default=[
+            IPv4Address("127.0.0.1"),
+            IPv4Network("10.0.0.0/8"),
+            IPv4Network("172.16.0.0/12"),
+            IPv4Network("192.168.0.0/16"),
+        ]
+    )
 
 
 class MongoDB(BaseModel):
