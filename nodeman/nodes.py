@@ -1,7 +1,7 @@
-import contextlib
 import ipaddress
 import json
 import logging
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -139,7 +139,7 @@ def healthcheck(
 ) -> HealthcheckResult:
     """Perform healthcheck with database and S3 access"""
 
-    with contextlib.suppress(ValueError):
+    with suppress(ValueError):
         if (
             request.client
             and request.client.host
