@@ -1,3 +1,4 @@
+import contextlib
 import ipaddress
 import json
 import logging
@@ -138,15 +139,16 @@ def healthcheck(
 ) -> HealthcheckResult:
     """Perform healthcheck with database and S3 access"""
 
-    if (
-        request.client
-        and request.client.host
-        and ipaddress.ip_address(request.client.host) not in request.app.settings.http.healthcheck_hosts
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not my physician",
-        )
+    with contextlib.suppress(ValueError):
+        if (
+            request.client
+            and request.client.host
+            and ipaddress.ip_address(request.client.host) not in request.app.settings.http.healthcheck_hosts
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not my physician",
+            )
 
     try:
         node_count = TapirNode.objects().count()
