@@ -137,3 +137,10 @@ class NodeConfiguration(BaseModel):
 
 class NodeEnrollmentResult(NodeConfiguration, NodeCertificate):
     pass
+
+
+class HealthcheckResult(BaseModel):
+    status: str = Field(title="Status")
+    node_count: int = Field(title="Number of nodes in database")
+    cert_count: int = Field(title="Number of certificates issued")
+    ca_fingerprint: str = Field(title="CA fingerprint")

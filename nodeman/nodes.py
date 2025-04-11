@@ -1,5 +1,7 @@
+import ipaddress
 import json
 import logging
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -22,6 +24,7 @@ from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_RE,
     EnrollmentRequest,
+    HealthcheckResult,
     NodeBootstrapInformation,
     NodeCertificate,
     NodeCollection,
@@ -121,6 +124,54 @@ def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, n
         x509_ca_certificate=x509_ca_certificate_pem,
         x509_certificate_serial_number=str(x509_certificate_serial_number),
         x509_certificate_not_valid_after=x509_certificate.not_valid_after_utc,
+    )
+
+
+@router.get(
+    "/api/v1/healthcheck",
+    responses={
+        status.HTTP_200_OK: {"model": HealthcheckResult},
+    },
+    tags=["backend"],
+)
+def healthcheck(
+    request: Request,
+) -> HealthcheckResult:
+    """Perform healthcheck with database and S3 access"""
+
+    with suppress(ValueError):
+        if (
+            request.client
+            and request.client.host
+            and ipaddress.ip_address(request.client.host) not in request.app.settings.http.healthcheck_hosts
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not my physician",
+            )
+
+    try:
+        node_count = TapirNode.objects().count()
+        cert_count = TapirCertificate.objects().count()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to connect to MongoDB",
+        ) from exc
+
+    try:
+        ca_fingerprint = request.app.ca_client.ca_fingerprint
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to connect to CA",
+        ) from exc
+
+    return HealthcheckResult(
+        status="OK",
+        node_count=node_count,
+        cert_count=cert_count,
+        ca_fingerprint=ca_fingerprint,
     )
 
 
