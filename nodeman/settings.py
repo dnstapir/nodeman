@@ -1,7 +1,7 @@
 import hashlib
 import os
 from contextlib import suppress
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address, IPv4Network, IPv6Network
 from typing import Annotated, Self
 
 from argon2 import PasswordHasher
@@ -41,12 +41,13 @@ class HttpSettings(BaseModel):
             IPv4Address("127.0.0.1"),
         ]
     )
-    healthcheck_hosts: list[IPvAnyAddress | IPvAnyNetwork] = Field(
+    healthcheck_hosts: list[IPvAnyNetwork] = Field(
         default=[
-            IPv4Address("127.0.0.1"),
+            IPv4Network("127.0.0.1/32"),
             IPv4Network("10.0.0.0/8"),
             IPv4Network("172.16.0.0/12"),
             IPv4Network("192.168.0.0/16"),
+            IPv6Network("fe80::/10"),
         ]
     )
 
