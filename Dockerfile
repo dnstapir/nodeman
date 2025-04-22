@@ -6,12 +6,11 @@ WORKDIR /build
 
 COPY . /build/
 
-# We want the same version of packages, but we might need more
-# because the lock file might be meant for another architecture or version of Python
+# We want the same version of packages, but we might need more because the lock
+# file might be meant for another architecture or version of Python. We then
+# compile using the constraints and our python we expect to run in production.
 RUN uv export --format requirements-txt --output-file /constraints.txt \
-    --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes
-
-# We then compile using the constraints and our python we expect to run in production
+    --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes && \
 RUN uv pip compile --constraints /constraints.txt --output-file /requirements.txt pyproject.toml
 
 # Install requirements into /env
