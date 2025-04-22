@@ -4,7 +4,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /build
 
-ADD . /build/
+COPY . /build/
 
 # We want the same version of packages, but we might need more
 # because the lock file might be meant for another architecture or version of Python
@@ -36,9 +36,9 @@ RUN --mount=type=cache,target=/root/.cache \
 FROM python:3.13-slim-bookworm
 COPY --from=builder /env /env
 COPY --from=builder /app /app
-RUN useradd -u 1000 -m -s /sbin/nologin nodeman
+RUN useradd -u 1000 -m -s /usr/sbin/nologin nodeman
 ENV PYTHONPATH=/app:/env
-ENV PATH=/app/bin
+ENV PATH=/app/bin:$PATH
 USER nodeman
 ENTRYPOINT ["nodeman_server"]
 CMD ["--host", "0.0.0.0", "--port", "8080", "--log-json"]
