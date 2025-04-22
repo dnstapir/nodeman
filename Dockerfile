@@ -11,7 +11,7 @@ COPY . /build/
 # compile using the constraints and our python we expect to run in production.
 RUN uv export --format requirements-txt --output-file /constraints.txt \
     --no-editable --no-dev --no-emit-workspace --frozen --no-index --no-hashes && \
-RUN uv pip compile --constraints /constraints.txt --output-file /requirements.txt pyproject.toml
+    uv pip compile --constraints /constraints.txt --output-file /requirements.txt pyproject.toml
 
 # Install requirements into /env
 RUN --mount=type=cache,target=/root/.cache \
