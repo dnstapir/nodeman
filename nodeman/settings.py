@@ -18,11 +18,12 @@ from pydantic import (
 )
 from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 from pydantic_core import Url
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict, TomlConfigSettingsSource
+from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSettingsSource, TomlConfigSettingsSource
 
 from dnstapir.opentelemetry import OtlpSettings
 
 CONFIG_FILE = os.environ.get("NODEMAN_CONFIG", "nodeman.toml")
+ENV_PREFIX = "DNSTAPIR_NODEMAN_"
 
 MqttUrl = Annotated[
     Url,
@@ -162,8 +163,6 @@ class Settings(BaseSettings):
 
     http: HttpSettings = Field(default=HttpSettings())
 
-    model_config = SettingsConfigDict(toml_file=CONFIG_FILE)
-
     @model_validator(mode="after")
     def validate_unique_usernames(self) -> Self:
         username_set = set()
@@ -182,4 +181,13 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (TomlConfigSettingsSource(settings_cls),)
+        return (
+            EnvSettingsSource(
+                settings_cls,
+                env_prefix=ENV_PREFIX,
+                env_nested_delimiter="__",
+                env_ignore_empty=True,
+                case_sensitive=False,
+            ),
+            TomlConfigSettingsSource(settings_cls, toml_file=CONFIG_FILE),
+        )
