@@ -436,7 +436,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/40/09/560ba71405cdf8359
 
 [[package]]
 name = "nodeman"
-version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
@@ -466,7 +465,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=23.1.0" },
-    { name = "dnstapir", extras = ["opentelemetry", "keymanager"], git = "https://github.com/dnstapir/python-dnstapir.git" },
+    { name = "dnstapir", extras = ["keymanager", "opentelemetry"], git = "https://github.com/dnstapir/python-dnstapir.git" },
     { name = "fastapi", specifier = ">=0.115.11" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jwcrypto", specifier = ">=1.5.6" },

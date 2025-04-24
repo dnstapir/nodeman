@@ -1,8 +1,8 @@
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("nodeman")
-except importlib.metadata.PackageNotFoundError:
+except PackageNotFoundError:
     __version__ = "0.0.0"
 
 try:
