@@ -163,6 +163,8 @@ class Settings(BaseSettings):
 
     http: HttpSettings = Field(default=HttpSettings())
 
+    _toml_file: str = CONFIG_FILE
+
     @model_validator(mode="after")
     def validate_unique_usernames(self) -> Self:
         username_set = set()
@@ -191,6 +193,6 @@ class Settings(BaseSettings):
             ),
             TomlConfigSettingsSource(
                 settings_cls,
-                toml_file=CONFIG_FILE,
+                toml_file=str(cls._toml_file),
             ),
         )
