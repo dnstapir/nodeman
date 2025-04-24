@@ -189,5 +189,8 @@ class Settings(BaseSettings):
                 env_ignore_empty=True,
                 case_sensitive=False,
             ),
-            TomlConfigSettingsSource(settings_cls, toml_file=CONFIG_FILE),
+            TomlConfigSettingsSource(
+                settings_cls,
+                toml_file=CONFIG_FILE,
+            ),
         )
