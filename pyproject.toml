@@ -1,6 +1,6 @@
 [project]
 name = "nodeman"
-version = "0.0.0"
+dynamic = ["version"]
 description = "DNS TAPIR Node Manager"
 authors = [{name="Jakob Schlyter", email = "jakob@kirei.se"}]
 readme = "README.md"
@@ -19,7 +19,6 @@ dependencies = [
     "pyyaml>=6.0.2",
 ]
 
-
 [project.urls]
 repository = "https://github.com/dnstapir/nodeman.git"
 
@@ -27,12 +26,15 @@ repository = "https://github.com/dnstapir/nodeman.git"
 nodeman_server = "nodeman.server:main"
 nodeman_client = "nodeman.client:main"
 
-[tool.setuptools]
-packages = [ "nodeman" ]
-
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [dependency-groups]
 dev = [
