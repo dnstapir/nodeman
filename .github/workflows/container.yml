@@ -20,7 +20,7 @@ jobs:
   container:
     name: Build and push container
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event.action == 'published' }}
     permissions:
       actions: write
       contents: read
