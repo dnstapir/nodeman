@@ -8,6 +8,9 @@ on:
       - "main"
     types:
       - completed
+  release:
+    types:
+      - published
 
 env:
   REGISTRY: ghcr.io
