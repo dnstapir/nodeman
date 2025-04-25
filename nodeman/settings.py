@@ -23,7 +23,7 @@ from pydantic_settings import BaseSettings, EnvSettingsSource, PydanticBaseSetti
 from dnstapir.opentelemetry import OtlpSettings
 
 CONFIG_FILE = os.environ.get("NODEMAN_CONFIG", "nodeman.toml")
-ENV_PREFIX = "DNSTAPIR_NODEMAN__"
+ENV_PREFIX = "NODEMAN_"
 
 MqttUrl = Annotated[
     Url,

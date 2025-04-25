@@ -22,12 +22,7 @@ from nodeman.jose import generate_similar_jwk, jwk_to_alg
 from nodeman.models import PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
-from nodeman.x509 import (
-    RSA_EXPONENT,
-    CertificateAuthorityClient,
-    generate_ca_certificate,
-    generate_x509_csr,
-)
+from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_certificate, generate_x509_csr
 
 ADMIN_TEST_NODE_COUNT = 100
 ADMIN_TEST_NODE_COUNT_TAGS = 10
@@ -35,7 +30,7 @@ BACKEND_CREDENTIALS = ("username", "password")
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
-# Set test configuration file - note that environment variables with DNSTAPIR_NODEMAN__ prefix
+# Set test configuration file - note that environment variables with NODEMAN_ prefix
 # will take precedence over values in this file
 Settings._toml_file = "tests/test.toml"
 settings = Settings()
