@@ -1,6 +1,9 @@
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("nodeman")
+try:
+    __version__ = version("nodeman")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
 
 try:
     from .buildinfo import __commit__, __timestamp__
