@@ -16,7 +16,6 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
-from pydantic_settings import SettingsConfigDict
 
 from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import generate_similar_jwk, jwk_to_alg
@@ -31,7 +30,9 @@ BACKEND_CREDENTIALS = ("username", "password")
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
-Settings.model_config = SettingsConfigDict(toml_file="tests/test.toml")
+# Set test configuration file - note that environment variables with NODEMAN_ prefix
+# will take precedence over values in this file
+Settings._toml_file = "tests/test.toml"
 settings = Settings()
 
 
