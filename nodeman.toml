@@ -1,5 +1,5 @@
 [mongodb]
-server =  "mongodb://localhost/nodes"
+server =  "mongodb://localhost/nodeman"
 
 [internal_ca]
 issuer_ca_certificate = "internal_ca_certificate.pem"
