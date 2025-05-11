@@ -168,7 +168,6 @@ def main() -> None:
     logger.info("Starting Node Manager version %s", __verbose_version__)
 
     settings = Settings()
-    breakpoint()
     app = NodemanServer(settings=settings)
 
     uvicorn.run(
