@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin
@@ -32,7 +33,7 @@ PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey |
 
 # Set test configuration file - note that environment variables with NODEMAN_ prefix
 # will take precedence over values in this file
-Settings._toml_file = "tests/test.toml"
+os.environ["NODEMAN_CONFIG"] = "tests/test.toml"
 settings = Settings()
 
 
