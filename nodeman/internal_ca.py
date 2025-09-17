@@ -136,15 +136,15 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
                 self.logger.debug("Using requested certificate validity %s for %s", requested_validity, name)
             else:
                 self.logger.error(
-                    "Refusing requested certificate validity %s for %s (allowed: %s..%s)",
-                    requested_validity,
+                    "Refusing requested certificate validity %d for %s (allowed: %d..%d)",
+                    requested_validity.total_seconds(),
                     name,
-                    self.min_validity,
-                    self.max_validity,
+                    self.min_validity.total_seconds(),
+                    self.max_validity.total_seconds(),
                 )
                 raise CertificateRequestRefused(
-                    f"Requested validity {requested_validity} outside allowed range "
-                    f"[{self.min_validity}, {self.max_validity}]"
+                    f"Requested validity {requested_validity.total_seconds()} outside allowed range "
+                    f"[{self.min_validity.total_seconds()}, {self.max_validity.total_seconds()}]"
                 )
         else:
             validity = self.default_validity
