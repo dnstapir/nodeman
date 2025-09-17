@@ -71,8 +71,9 @@ class InternalCaSettings(BaseModel):
     issuer_ca_private_key: FilePath
     root_ca_certificate: FilePath | None = None
     validity_days: int = Field(default=90, gt=0)
-    min_validity_seconds: int | None = Field(default=None, ge=0)
-    max_validity_seconds: int | None = Field(default=None, ge=0)
+    min_validity_seconds: int | None = Field(default=None, gt=0)
+    max_validity_seconds: int | None = Field(default=None, gt=0)
+    time_skew_seconds: int = Field(default=0, ge=0)
 
     # within class InternalCaSettings
     @model_validator(mode="after")

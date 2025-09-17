@@ -96,6 +96,7 @@ class NodemanServer(FastAPI):
             default_validity=timedelta(days=settings.validity_days),
             min_validity=timedelta(seconds=settings.min_validity_seconds) if settings.min_validity_seconds else None,
             max_validity=timedelta(seconds=settings.max_validity_seconds) if settings.max_validity_seconds else None,
+            time_skew=timedelta(seconds=settings.time_skew_seconds),
         )
         self.logger.info("Configured Internal CA (%s)", res.ca_fingerprint)
         return res
