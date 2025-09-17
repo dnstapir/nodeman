@@ -23,7 +23,9 @@ PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey |
 DEFAULT_SERVER = os.environ.get("NODEMAN_SERVER", "http://127.0.0.1:8080")
 
 
-def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey) -> NodeConfiguration:
+def enroll(
+    name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey, lifetime: int | None
+) -> NodeConfiguration:
     """Enroll new node"""
 
     enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
@@ -34,6 +36,7 @@ def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key:
         {
             "timestamp": datetime.now(tz=UTC).isoformat(),
             "x509_csr": x509_csr,
+            **({"x509_lifetime": lifetime} if lifetime is not None else {}),
             "public_key": data_key.export_public(as_dict=True),
         }
     )
@@ -59,7 +62,7 @@ def enroll(name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key:
     return NodeEnrollmentResult(**enrollment_response)
 
 
-def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCertificate:
+def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime: int | None) -> NodeCertificate:
     """Renew existing node"""
 
     data_alg = jwk_to_alg(data_key)
@@ -69,6 +72,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey) -> NodeCe
         {
             "timestamp": datetime.now(tz=UTC).isoformat(),
             "x509_csr": x509_csr,
+            **({"x509_lifetime": lifetime} if lifetime is not None else {}),
         }
     )
 
@@ -261,7 +265,14 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
     x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
-    result = enroll(name=name, server=server, enrollment_key=enrollment_key, data_key=data_key, x509_key=x509_key)
+    result = enroll(
+        name=name,
+        server=server,
+        enrollment_key=enrollment_key,
+        data_key=data_key,
+        x509_key=x509_key,
+        lifetime=args.tls_cert_lifetime,
+    )
 
     data_key["iss"] = server
 
@@ -289,7 +300,7 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
         logging.error("Node name not set")
         raise SystemExit(1)
 
-    result = renew(name=name, server=server, data_key=data_key, x509_key=x509_key)
+    result = renew(name=name, server=server, data_key=data_key, x509_key=x509_key, lifetime=args.tls_cert_lifetime)
 
     save_x509(args, x509_key, result.x509_certificate, result.x509_ca_certificate)
 
@@ -343,6 +354,14 @@ def main() -> None:
         default="tls-ca.crt",
     )
     parser.add_argument(
+        "--tls-cert-lifetime",
+        metavar="seconds",
+        help="TLS client certificate lifetime",
+        required=False,
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
         "--server",
         metavar="URL",
         help="Nodeman server",
@@ -377,6 +396,7 @@ def main() -> None:
     enrollment_group.add_argument("--create", action="store_true", help="Create node")
     enrollment_group.add_argument("--file", metavar="filename", help="JSON file containing enrollment data")
     enrollment_group.add_argument("--secret", metavar="secret", help="Node secret")
+    enroll_parser.add_argument("--name", metavar="name", help="Node name")
     enroll_parser.add_argument("--kty", metavar="type", help="Key type", default="OKP")
     enroll_parser.add_argument("--crv", metavar="type", help="Key curve", default="Ed25519")
 
