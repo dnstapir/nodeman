@@ -97,7 +97,12 @@ def process_csr_request(
     """Verify CSR and issue certificate"""
 
     try:
-        validity = timedelta(seconds=lifetime) if lifetime else None
+        if lifetime is not None:
+            if lifetime <= 0:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid certificate lifetime (must be > 0)")
+            validity = timedelta(seconds=lifetime)
+        else:
+            validity = None
         ca_response = request.app.ca_client.sign_csr(csr, name, validity)
     except CertificateRequestRefused as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Certificate request refused") from exc

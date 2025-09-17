@@ -46,7 +46,7 @@ class StepClient(CertificateAuthorityClient):
         self.logger.debug("Processing CSR from %s", name)
 
         if requested_validity is not None:
-            self.logger.warning("Ignoring requested certificate validity")
+            self.logger.warning("Ignoring requested certificate validity (%s)", requested_validity)
 
         verify_x509_csr_signature(csr=csr, name=name)
         verify_x509_csr_data(csr=csr, name=name)

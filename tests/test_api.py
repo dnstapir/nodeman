@@ -246,7 +246,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     ###################################################
     # Renew certificate with short certificate lifetime
 
-    x509_lifetime = 60
+    x509_lifetime = 42
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
     payload = {
         "timestamp": datetime.now(tz=UTC).isoformat(),

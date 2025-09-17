@@ -70,9 +70,20 @@ class InternalCaSettings(BaseModel):
     issuer_ca_certificate: FilePath
     issuer_ca_private_key: FilePath
     root_ca_certificate: FilePath | None = None
-    validity_days: int = Field(default=90)
-    min_validity_seconds: int | None = Field(default=None)
-    max_validity_seconds: int | None = Field(default=None)
+    validity_days: int = Field(default=90, gt=0)
+    min_validity_seconds: int | None = Field(default=None, ge=0)
+    max_validity_seconds: int | None = Field(default=None, ge=0)
+
+    # within class InternalCaSettings
+    @model_validator(mode="after")
+    def _validate_validity_bounds(self) -> Self:
+        if (
+            self.min_validity_seconds
+            and self.max_validity_seconds
+            and self.min_validity_seconds > self.max_validity_seconds
+        ):
+            raise ValueError("min_validity_seconds must be <= max_validity_seconds")
+        return self
 
 
 class NodesSettings(BaseModel):

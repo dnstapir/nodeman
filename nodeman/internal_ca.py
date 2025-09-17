@@ -18,6 +18,7 @@ from nodeman.x509 import (
     CertificateInformation,
     CertificateRequestRefused,
     PrivateKey,
+    verify_x509_csr_data,
     verify_x509_csr_signature,
 )
 
@@ -62,6 +63,16 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         self.default_validity = default_validity
         self.max_validity = max_validity or self.default_validity
         self.min_validity = min_validity or self.default_validity
+
+        # Invariants
+        if self.time_skew < timedelta(0):
+            raise ValueError("time_skew must be non-negative")
+        if self.min_validity < timedelta(0) or self.max_validity < timedelta(0):
+            raise ValueError("validity bounds must be positive")
+        if self.min_validity > self.max_validity:
+            raise ValueError("min_validity must be ≤ max_validity")
+        if not (self.min_validity <= self.default_validity <= self.max_validity):
+            raise ValueError("default_validity must lie within [min_validity, max_validity]")
 
     @classmethod
     def load(
@@ -116,13 +127,25 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         verify_x509_csr_signature(csr=csr, name=name)
 
-        if requested_validity:
+        # not strictly required since we don't use anything except the public key from the CSR
+        verify_x509_csr_data(csr=csr, name=name)
+
+        if requested_validity is not None:
             if self.min_validity <= requested_validity <= self.max_validity:
                 validity = requested_validity
                 self.logger.debug("Using requested certificate validity %s for %s", requested_validity, name)
             else:
-                self.logger.error("Refusing requested certificate validity %s for %s", requested_validity, name)
-                raise CertificateRequestRefused
+                self.logger.error(
+                    "Refusing requested certificate validity %s for %s (allowed: %s..%s)",
+                    requested_validity,
+                    name,
+                    self.min_validity,
+                    self.max_validity,
+                )
+                raise CertificateRequestRefused(
+                    f"Requested validity {requested_validity} outside allowed range "
+                    f"[{self.min_validity}, {self.max_validity}]"
+                )
         else:
             validity = self.default_validity
 
