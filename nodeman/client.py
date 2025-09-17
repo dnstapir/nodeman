@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 import httpx
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from jwcrypto.jwk import JWK
@@ -16,16 +16,14 @@ from jwcrypto.jws import JWS
 
 from nodeman.jose import jwk_to_alg
 from nodeman.models import NodeBootstrapInformation, NodeCertificate, NodeConfiguration, NodeEnrollmentResult
-from nodeman.x509 import generate_x509_csr
-
-PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
+from nodeman.x509 import PrivateKey, generate_x509_csr
 
 DEFAULT_SERVER = os.environ.get("NODEMAN_SERVER", "http://127.0.0.1:8080")
 
 
 def enroll(
     name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey, lifetime: int | None
-) -> NodeConfiguration:
+) -> NodeEnrollmentResult:
     """Enroll new node"""
 
     enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
