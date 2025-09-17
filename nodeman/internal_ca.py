@@ -59,7 +59,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         self.issuer_ca_certificate = issuer_ca_certificate
         self.issuer_ca_private_key = issuer_ca_private_key
         self.root_ca_certificate = root_ca_certificate or issuer_ca_certificate
-        self.time_skew = timedelta(minutes=10) if time_skew is None else time_skew
+        self.time_skew = timedelta(minutes=0) if time_skew is None else time_skew
         self.default_validity = default_validity
         self.max_validity = max_validity or self.default_validity
         self.min_validity = min_validity or self.default_validity
