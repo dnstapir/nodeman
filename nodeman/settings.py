@@ -71,6 +71,8 @@ class InternalCaSettings(BaseModel):
     issuer_ca_private_key: FilePath
     root_ca_certificate: FilePath | None = None
     validity_days: int = Field(default=90)
+    min_validity_seconds: int | None = Field(default=None)
+    max_validity_seconds: int | None = Field(default=None)
 
 
 class NodesSettings(BaseModel):

@@ -49,6 +49,7 @@ class NodeCreateRequest(BaseModel):
 class NodeRequest(BaseModel):
     timestamp: AwareDatetime = Field(title="Timestamp")
     x509_csr: str = Field(title="X.509 Client Certificate Bundle")
+    x509_lifetime: int | None = Field(title="Requested X.509 Client Certificate lifetime", default=None)
 
     @field_validator("timestamp")
     @classmethod
