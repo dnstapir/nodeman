@@ -75,15 +75,26 @@ class InternalCaSettings(BaseModel):
     max_validity_seconds: int | None = Field(default=None, gt=0)
     time_skew_seconds: int = Field(default=0, ge=0)
 
+    @property
+    def validity_seconds(self) -> int:
+        return self.validity_days * 86400
+
     # within class InternalCaSettings
     @model_validator(mode="after")
     def _validate_validity_bounds(self) -> Self:
         if (
-            self.min_validity_seconds
-            and self.max_validity_seconds
+            self.min_validity_seconds is not None
+            and self.max_validity_seconds is not None
             and self.min_validity_seconds > self.max_validity_seconds
         ):
             raise ValueError("min_validity_seconds must be <= max_validity_seconds")
+
+        if self.min_validity_seconds is not None and self.validity_seconds < self.min_validity_seconds:
+            raise ValueError("validity shorter than min validity")
+
+        if self.max_validity_seconds is not None and self.validity_seconds > self.max_validity_seconds:
+            raise ValueError("validity larger than max validity")
+
         return self
 
 
