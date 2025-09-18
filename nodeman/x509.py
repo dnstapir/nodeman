@@ -26,9 +26,18 @@ class CertificateInformation:
     ca_cert: x509.Certificate
 
 
+class CertificateRequestRefused(ValueError):
+    pass
+
+
 class CertificateAuthorityClient(ABC):
     @abstractmethod
-    def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
+    def sign_csr(
+        self,
+        csr: x509.CertificateSigningRequest,
+        name: str,
+        requested_validity: timedelta | None = None,
+    ) -> CertificateInformation:
         pass
 
 

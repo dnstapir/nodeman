@@ -40,7 +40,9 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
 
     validity = timedelta(minutes=10)
     ca_client = InternalCertificateAuthority(
-        issuer_ca_certificate=ca_certificate, issuer_ca_private_key=ca_private_key, validity=validity
+        issuer_ca_certificate=ca_certificate,
+        issuer_ca_private_key=ca_private_key,
+        default_validity=validity,
     )
 
     _ = ca_client.ca_fingerprint
@@ -92,7 +94,7 @@ def test_internal_sub_ca() -> None:
         issuer_ca_certificate=issuer_ca_certificate,
         issuer_ca_private_key=issuer_ca_private_key,
         root_ca_certificate=root_ca_certificate,
-        validity=validity,
+        default_validity=validity,
     )
 
     name = "hostname.example.com"
@@ -125,6 +127,7 @@ def test_internal_ca_file() -> None:
     _ = InternalCertificateAuthority.load(
         issuer_ca_certificate_file=ca_certificate_file,
         issuer_ca_private_key_file=ca_private_key_file,
+        default_validity=timedelta(seconds=0),
     )
 
     os.unlink(ca_certificate_file)

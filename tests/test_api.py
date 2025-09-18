@@ -41,11 +41,13 @@ def get_ca_client() -> CertificateAuthorityClient:
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
     ca_private_key = ec.generate_private_key(ec.SECP256R1())
     ca_certificate = generate_ca_certificate(ca_name, ca_private_key)
-    validity = timedelta(minutes=10)
     return InternalCertificateAuthority(
         issuer_ca_certificate=ca_certificate,
         issuer_ca_private_key=ca_private_key,
-        validity=validity,
+        default_validity=timedelta(seconds=60),
+        min_validity=timedelta(seconds=10),
+        max_validity=timedelta(seconds=3600),
+        time_skew=timedelta(seconds=0),
     )
 
 
@@ -216,8 +218,8 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = client.post(f"{node_url}/renew", json=renew_request)
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    ###################
-    # Renew certificate
+    #####################################################
+    # Renew certificate with default certificate lifetime
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
     payload = {
@@ -237,6 +239,54 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     certs = x509.load_pem_x509_certificates(renew_response["x509_certificate"].encode())
     certificate_serial_number_2 = certs[0].serial_number
     assert certificate_serial_number_1 != certificate_serial_number_2
+
+    ttl = certs[0].not_valid_after_utc - certs[0].not_valid_before_utc
+    assert ttl.total_seconds() == client.app.ca_client.default_validity.total_seconds()
+
+    ###################################################
+    # Renew certificate with short certificate lifetime
+
+    x509_lifetime = 42
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+    payload = {
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+        "x509_csr": x509_csr,
+        "x509_lifetime": x509_lifetime,
+    }
+
+    jws = JWS(payload=json.dumps(payload))
+    jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+    renew_request = json.loads(jws.serialize())
+
+    response = client.post(f"{node_url}/renew", json=renew_request)
+    assert response.status_code == status.HTTP_200_OK
+
+    renew_response = response.json()
+    print(json.dumps(renew_response, indent=4))
+    certs = x509.load_pem_x509_certificates(renew_response["x509_certificate"].encode())
+    certificate_serial_number_2 = certs[0].serial_number
+    assert certificate_serial_number_1 != certificate_serial_number_2
+
+    ttl = certs[0].not_valid_after_utc - certs[0].not_valid_before_utc
+    assert ttl.total_seconds() == x509_lifetime
+
+    #########################################
+    # Renew certificate with invalid lifetime
+
+    x509_lifetime = 7200
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+    payload = {
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+        "x509_csr": x509_csr,
+        "x509_lifetime": x509_lifetime,
+    }
+
+    jws = JWS(payload=json.dumps(payload))
+    jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+    renew_request = json.loads(jws.serialize())
+
+    response = client.post(f"{node_url}/renew", json=renew_request)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     ###########
     # Clean up

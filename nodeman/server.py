@@ -1,6 +1,7 @@
 import argparse
 import logging
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 import mongoengine
 import uvicorn
@@ -92,7 +93,10 @@ class NodemanServer(FastAPI):
             issuer_ca_certificate_file=settings.issuer_ca_certificate,
             issuer_ca_private_key_file=settings.issuer_ca_private_key,
             root_ca_certificate_file=settings.root_ca_certificate,
-            validity_days=settings.validity_days,
+            default_validity=timedelta(days=settings.validity_days),
+            min_validity=timedelta(seconds=settings.min_validity_seconds) if settings.min_validity_seconds else None,
+            max_validity=timedelta(seconds=settings.max_validity_seconds) if settings.max_validity_seconds else None,
+            time_skew=timedelta(seconds=settings.time_skew_seconds),
         )
         self.logger.info("Configured Internal CA (%s)", res.ca_fingerprint)
         return res

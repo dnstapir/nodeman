@@ -2,7 +2,7 @@ import ipaddress
 import json
 import logging
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -35,6 +35,7 @@ from .models import (
     PublicKeyFormat,
     RenewalRequest,
 )
+from .x509 import CertificateRequestRefused
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +88,24 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
     )
 
 
-def process_csr_request(request: Request, csr: x509.CertificateSigningRequest, name: str) -> NodeCertificate:
+def process_csr_request(
+    request: Request,
+    csr: x509.CertificateSigningRequest,
+    name: str,
+    lifetime: int | None = None,
+) -> NodeCertificate:
     """Verify CSR and issue certificate"""
 
     try:
-        ca_response = request.app.ca_client.sign_csr(csr, name)
+        if lifetime is not None:
+            if lifetime <= 0:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid certificate lifetime (must be > 0)")
+            validity = timedelta(seconds=lifetime)
+        else:
+            validity = None
+        ca_response = request.app.ca_client.sign_csr(csr, name, validity)
+    except CertificateRequestRefused as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Certificate request refused") from exc
     except Exception as exc:
         logger.error("Failed to process CSR for %s: %s", name, str(exc), exc_info=exc)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
@@ -455,7 +469,12 @@ async def enroll_node(
             x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
         except ValueError as exc:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
-        node_certificate = process_csr_request(csr=x509_csr, name=name, request=request)
+        node_certificate = process_csr_request(
+            csr=x509_csr,
+            name=name,
+            lifetime=message.x509_lifetime,
+            request=request,
+        )
 
     node.activated = datetime.now(tz=UTC)
     node.save()
@@ -525,7 +544,12 @@ async def renew_node(
             x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
         except ValueError as exc:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
-        res = process_csr_request(csr=x509_csr, name=name, request=request)
+        res = process_csr_request(
+            csr=x509_csr,
+            name=name,
+            lifetime=message.x509_lifetime,
+            request=request,
+        )
 
     nodes_renewed.add(1)
 

@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import uuid
+from datetime import timedelta
 from urllib.parse import urljoin
 
 import httpx
@@ -34,10 +35,18 @@ class StepClient(CertificateAuthorityClient):
         self.token_ttl = 300
         self.verify = self.ca_bundle_filename if ca_server_verify else False
 
-    def sign_csr(self, csr: x509.CertificateSigningRequest, name: str) -> CertificateInformation:
+    def sign_csr(
+        self,
+        csr: x509.CertificateSigningRequest,
+        name: str,
+        requested_validity: timedelta | None = None,
+    ) -> CertificateInformation:
         """Sign CSR with Step CA"""
 
         self.logger.debug("Processing CSR from %s", name)
+
+        if requested_validity is not None:
+            self.logger.warning("Ignoring requested certificate validity (%s)", requested_validity)
 
         verify_x509_csr_signature(csr=csr, name=name)
         verify_x509_csr_data(csr=csr, name=name)
