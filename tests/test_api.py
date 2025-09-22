@@ -629,3 +629,13 @@ def test_healthcehck() -> None:
 
     response = admin_client.get(urljoin(server, "/api/v1/healthcheck"))
     assert response.status_code == status.HTTP_200_OK
+
+
+def test_bad_username() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = ("username-name", "password")
+    server = ""
+
+    node_create_request = {"name": "hostname.test.dnstapir.se"}
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
