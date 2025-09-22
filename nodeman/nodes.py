@@ -103,7 +103,7 @@ def get_node_name(name: str) -> str:
 def get_node_tags(tags: str | None = None) -> list[str]:
     if not tags:
         return []
-    split_tags = list(set(tags.split(",")))
+    split_tags = sorted({t for t in (tag.strip() for tag in tags.split(",")) if t})
     for tag in split_tags:
         if not NODE_TAG_RE.match(tag):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node tag")
