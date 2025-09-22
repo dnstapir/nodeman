@@ -14,7 +14,7 @@ from .settings import MqttUrl
 MAX_REQUEST_AGE = 300
 
 DOMAIN_NAME_RE = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
-NODE_TAG_RE = re.compile(r"^[A-Za-z0-9/\-_]{1,100}$")
+NODE_TAG_RE = re.compile(r"^[A-Za-z0-9/\-_\.]{1,100}$")
 
 NodeTag = Annotated[str, StringConstraints(pattern=NODE_TAG_RE)]
 
@@ -41,7 +41,7 @@ class NodeCreateRequest(BaseModel):
     )
     tags: list[NodeTag] | None = Field(
         title="Node tags",
-        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, or . characters.",
+        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, _ or . characters.",
         max_length=100,
         default=None,
     )

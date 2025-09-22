@@ -31,7 +31,7 @@ class TapirNode(Document):
     deleted = DateTimeField()
 
     tags = SortedListField(
-        StringField(regex=r"^[A-Za-z0-9/\-_]+$", min_length=1, max_length=100),
+        StringField(regex=r"^[A-Za-z0-9/\-_\.]+$", min_length=1, max_length=100),
         max_length=100,
     )
 
