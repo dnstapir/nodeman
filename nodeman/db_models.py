@@ -8,6 +8,7 @@ from cryptography.x509.oid import ExtensionOID
 from mongoengine import DateTimeField, DictField, Document, SortedListField, StringField, ValidationError
 from mongoengine.errors import NotUniqueError
 
+from . import TAG_CHARACTERS
 from .names import get_deterministic_name, get_random_name
 from .x509 import get_x509_extensions_hex
 
@@ -31,7 +32,7 @@ class TapirNode(Document):
     deleted = DateTimeField()
 
     tags = SortedListField(
-        StringField(regex=r"^[A-Za-z0-9/\-_\.]+$", min_length=1, max_length=100),
+        StringField(regex=rf"^{TAG_CHARACTERS}+$", min_length=1, max_length=100),
         max_length=100,
     )
 

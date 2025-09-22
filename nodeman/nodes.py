@@ -22,8 +22,8 @@ from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
-    DOMAIN_NAME_RE,
-    NODE_TAG_RE,
+    DOMAIN_NAME_PATTERN,
+    NODE_TAG_PATTERN,
     EnrollmentRequest,
     HealthcheckResult,
     NodeBootstrapInformation,
@@ -95,7 +95,7 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
 
 
 def get_node_name(name: str) -> str:
-    if not DOMAIN_NAME_RE.match(name):
+    if not DOMAIN_NAME_PATTERN.match(name):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
     return name
 
@@ -105,7 +105,7 @@ def get_node_tags(tags: str | None = None) -> list[str]:
         return []
     split_tags = sorted({t for t in (tag.strip() for tag in tags.split(",")) if t})
     for tag in split_tags:
-        if not NODE_TAG_RE.match(tag):
+        if not NODE_TAG_PATTERN.match(tag):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node tag")
     return split_tags
 
@@ -254,7 +254,7 @@ async def create_node(
 
     if name is None:
         node = TapirNode.create_next_node(domain=domain)
-    elif name.endswith(f".{domain}") and DOMAIN_NAME_RE.match(name):
+    elif name.endswith(f".{domain}") and DOMAIN_NAME_PATTERN.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:

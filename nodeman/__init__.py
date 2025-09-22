@@ -29,3 +29,5 @@ OPENAPI_METADATA = {
         {"name": "backend", "description": "Backend operations"},
     ],
 }
+
+TAG_CHARACTERS = r"[A-Za-z0-9/\-_\.]"
