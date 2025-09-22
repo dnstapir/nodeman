@@ -376,7 +376,7 @@ async def get_node_public_key(
                     content = JWK(**node.public_key).export_to_pem().decode()
             case PublicKeyFormat.JWK:
                 with tracer.start_as_current_span("get_public_key_jwk"):
-                    jwk_dict = {**node.public_key, "kid": name}
+                    jwk_dict = {**node.public_key, "kid": name, "tags": node.tags}
                     content = json.dumps(jwk_dict)
     except ValueError as exc:
         raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
