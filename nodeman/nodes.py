@@ -56,13 +56,15 @@ node_configurations_requested = meter.create_counter(
 router = APIRouter()
 
 
-def find_node(name: str, query_tags: list[str] | None = None) -> TapirNode:
+def find_node(name: str, tags: list[str] | None = None) -> TapirNode:
     """Find node, raise exception if not found"""
+
     query = Q(name=name, deleted=None)
-    if query_tags:
-        query &= Q(tags__all=query_tags)
+    if tags:
+        query &= Q(tags__all=tags)
     if node := TapirNode.objects(query).first():
         return node
+
     logging.debug("Node %s not found", name, extra={"nodename": name})
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
@@ -92,13 +94,19 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
     )
 
 
-def verify_and_split_tags(tags: str) -> list[str] | None:
+def get_node_name(name: str) -> str:
+    if not DOMAIN_NAME_RE.match(name):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+    return name
+
+
+def get_node_tags(tags: str | None = None) -> list[str]:
     if not tags:
-        return None
+        return []
     split_tags = list(set(tags.split(",")))
     for tag in split_tags:
         if not NODE_TAG_RE.match(tag):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid tag")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node tag")
     return split_tags
 
 
@@ -282,21 +290,21 @@ async def create_node(
     tags=["backend"],
 )
 def get_node_information(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     username: Annotated[str, Depends(get_current_username)],
-    tags: str | None = None,
+    tags: Annotated[list[str], Depends(get_node_tags)],
 ) -> NodeInformation:
     """Get node information"""
 
-    if query_tags := verify_and_split_tags(tags):
+    if tags:
         logging.info(
             "%s queried for node %s tags %s",
             username,
             name,
-            query_tags,
-            extra={"username": username, "nodename": name, "tags": query_tags},
+            tags,
+            extra={"username": username, "nodename": name, "tags": tags},
         )
-        node = find_node(name=name, query_tags=query_tags)
+        node = find_node(name=name, tags=tags)
     else:
         logging.info(
             "%s queried for node %s",
@@ -318,18 +326,18 @@ def get_node_information(
 )
 def get_all_nodes(
     username: Annotated[str, Depends(get_current_username)],
-    tags: str | None = None,
+    tags: Annotated[list[str], Depends(get_node_tags)],
 ) -> NodeCollection:
     """Get all nodes"""
     query = Q(deleted=None)
-    if query_tags := verify_and_split_tags(tags):
+    if tags:
         logging.info(
             "%s queried for nodes with tags %s",
             username,
-            query_tags,
-            extra={"username": username, "tags": query_tags},
+            tags,
+            extra={"username": username, "tags": tags},
         )
-        query &= Q(tags__all=query_tags)
+        query &= Q(tags__all=tags)
     else:
         logging.info("%s queried for all nodes", username, extra={"username": username})
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
@@ -364,13 +372,12 @@ async def get_node_public_key(
         Header(description="Accept"),
     ],
     request: Request,
-    tags: str | None = None,
+    tags: Annotated[list[str], Depends(get_node_tags)],
 ) -> Response:
     """Get public key (JWK/PEM) for node"""
 
     try:
-        query_tags = verify_and_split_tags(tags)
-        node = find_node(name=name, query_tags=query_tags)
+        node = find_node(name=name, tags=tags)
     except HTTPException as exc:
         if exc.status_code == 404 and request.app.settings.legacy_nodes_directory:
             node = find_legacy_node(name, request.app.settings.legacy_nodes_directory)
