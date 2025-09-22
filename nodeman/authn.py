@@ -35,7 +35,8 @@ async def get_current_username(
         # Accept already verified credentials
         credentials_hash = user.get_combined_hash(credentials.password)
         if credentials_hash in cached_credentials:
-            return True
+            logger.debug("Verified password for user %s (cached)", credentials.username)
+            return credentials.username
 
         # Limit number of concurrent password verifications using semaphore
         async with verify_password_semaphore:
