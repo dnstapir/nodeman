@@ -227,6 +227,11 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    # Find single node with bad tag
+    public_key_url = f"{node_url}/public_key?tags=räksmörgås"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     #########################
     # Renew certificate (bad)
 

@@ -23,6 +23,7 @@ from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_RE,
+    NODE_TAG_RE,
     EnrollmentRequest,
     HealthcheckResult,
     NodeBootstrapInformation,
@@ -89,6 +90,16 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
         nodeman_url=request.app.settings.nodes.nodeman_url,
         aggrec_url=request.app.settings.nodes.aggrec_url,
     )
+
+
+def verify_and_split_tags(tags: str) -> list[str] | None:
+    if not tags:
+        return None
+    split_tags = list(set(tags.split(",")))
+    for tag in split_tags:
+        if not NODE_TAG_RE.match(tag):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid tag")
+    return split_tags
 
 
 def process_csr_request(
@@ -277,7 +288,7 @@ def get_node_information(
 ) -> NodeInformation:
     """Get node information"""
 
-    if query_tags := list(set(tags.split(","))) if tags else None:
+    if query_tags := verify_and_split_tags(tags):
         logging.info(
             "%s queried for node %s tags %s",
             username,
@@ -311,7 +322,7 @@ def get_all_nodes(
 ) -> NodeCollection:
     """Get all nodes"""
     query = Q(deleted=None)
-    if query_tags := list(set(tags.split(","))) if tags else None:
+    if query_tags := verify_and_split_tags(tags):
         logging.info(
             "%s queried for nodes with tags %s",
             username,
@@ -358,7 +369,7 @@ async def get_node_public_key(
     """Get public key (JWK/PEM) for node"""
 
     try:
-        query_tags = list(set(tags.split(","))) if tags else None
+        query_tags = verify_and_split_tags(tags)
         node = find_node(name=name, query_tags=query_tags)
     except HTTPException as exc:
         if exc.status_code == 404 and request.app.settings.legacy_nodes_directory:

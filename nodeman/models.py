@@ -14,8 +14,9 @@ from .settings import MqttUrl
 MAX_REQUEST_AGE = 300
 
 DOMAIN_NAME_RE = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
+NODE_TAG_RE = re.compile(r"^[A-Za-z0-9/\-\.]{1,100}$")
 
-NodeTag = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9/\-\.]{1,100}$")]
+NodeTag = Annotated[str, StringConstraints(pattern=NODE_TAG_RE)]
 
 
 class PublicKeyFormat(StrEnum):
