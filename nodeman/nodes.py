@@ -366,7 +366,7 @@ def get_all_nodes(
     tags=["client"],
 )
 async def get_node_public_key(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     accept: Annotated[
         str | None,
         Header(description="Accept"),
@@ -412,7 +412,10 @@ async def get_node_public_key(
     },
     tags=["backend"],
 )
-def delete_node(name: str, username: Annotated[str, Depends(get_current_username)]) -> Response:
+def delete_node(
+    name: Annotated[str, Depends(get_node_name)],
+    username: Annotated[str, Depends(get_current_username)],
+) -> Response:
     """Delete node"""
 
     node = find_node(name)
@@ -441,7 +444,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
     response_model_exclude_none=True,
 )
 async def enroll_node(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
@@ -549,7 +552,7 @@ async def enroll_node(
     tags=["client"],
 )
 async def renew_node(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
 ) -> NodeCertificate:
     """Renew node certificate"""
@@ -615,7 +618,7 @@ async def renew_node(
     response_model_exclude_none=True,
 )
 async def get_node_configuration(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
     response: Response,
 ) -> NodeConfiguration:
@@ -647,7 +650,7 @@ async def get_node_configuration(
     tags=["client"],
     response_model_exclude_none=True,
 )
-async def get_node_certificate(name: str) -> NodeCertificate:
+async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> NodeCertificate:
     """Get node certificate"""
 
     node = find_node(name)
