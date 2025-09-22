@@ -202,6 +202,31 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = client.get(public_key_url, headers={"Accept": "text/html"})
     assert response.status_code == status.HTTP_406_NOT_ACCEPTABLE
 
+    ########################################
+    # Get node public key (filtered by tag)
+
+    # Find single node with tagged test
+    public_key_url = f"{node_url}/public_key?tags=test"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == name
+
+    # Find single node with tagged test and xyzzy
+    public_key_url = f"{node_url}/public_key?tags=test,xyzzy"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    # Find single node with tagged xyzzy (does not exist)
+    public_key_url = f"{node_url}/public_key?tags=xyzzy"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    # Find single node with tagged both foo and baz (does not exist)
+    public_key_url = f"{node_url}/public_key?tags=foo,baz"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
     #########################
     # Renew certificate (bad)
 
