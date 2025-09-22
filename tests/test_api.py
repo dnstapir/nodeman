@@ -211,6 +211,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert response.status_code == status.HTTP_200_OK
     res = JWK.from_json(response.text)
     assert res.kid == name
+    assert response.json().get("tags") == sorted(tags)
 
     # Find single node with tagged test and xyzzy
     public_key_url = f"{node_url}/public_key?tags=test,xyzzy"
