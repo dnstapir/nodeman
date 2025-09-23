@@ -10,6 +10,7 @@ from bson import ObjectId
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from mongoengine import Q
@@ -22,7 +23,8 @@ from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
 from .jose import PublicEC, PublicOKP, PublicRSA
 from .models import (
-    DOMAIN_NAME_RE,
+    DOMAIN_NAME_PATTERN,
+    NODE_TAG_PATTERN,
     EnrollmentRequest,
     HealthcheckResult,
     NodeBootstrapInformation,
@@ -55,10 +57,15 @@ node_configurations_requested = meter.create_counter(
 router = APIRouter()
 
 
-def find_node(name: str) -> TapirNode:
+def find_node(name: str, tags: list[str] | None = None) -> TapirNode:
     """Find node, raise exception if not found"""
-    if node := TapirNode.objects(name=name, deleted=None).first():
+
+    query = Q(name=name, deleted=None)
+    if tags:
+        query &= Q(tags__all=tags)
+    if node := TapirNode.objects(query).first():
         return node
+
     logging.debug("Node %s not found", name, extra={"nodename": name})
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
@@ -86,6 +93,22 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
         nodeman_url=request.app.settings.nodes.nodeman_url,
         aggrec_url=request.app.settings.nodes.aggrec_url,
     )
+
+
+def get_node_name(name: str) -> str:
+    if not DOMAIN_NAME_PATTERN.match(name):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+    return name
+
+
+def get_node_tags(tags: str | None = None) -> list[str]:
+    if not tags:
+        return []
+    split_tags = sorted({t for t in (tag.strip() for tag in tags.split(",")) if t})
+    for tag in split_tags:
+        if not NODE_TAG_PATTERN.match(tag):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node tag")
+    return split_tags
 
 
 def process_csr_request(
@@ -198,12 +221,13 @@ def healthcheck(
     },
     tags=["backend"],
     response_model_exclude_none=True,
+    response_model=NodeBootstrapInformation,
 )
 async def create_node(
     username: Annotated[str, Depends(get_current_username)],
     request: Request,
     create_request: NodeCreateRequest | None = None,
-) -> NodeBootstrapInformation:
+) -> Response:
     """
     Create a new node with optional name and tags.
 
@@ -232,7 +256,7 @@ async def create_node(
 
     if name is None:
         node = TapirNode.create_next_node(domain=domain)
-    elif name.endswith(f".{domain}") and DOMAIN_NAME_RE.match(name):
+    elif name.endswith(f".{domain}") and DOMAIN_NAME_PATTERN.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
         node = TapirNode(name=name, domain=domain).save()
     else:
@@ -252,11 +276,15 @@ async def create_node(
 
     logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
 
-    return NodeBootstrapInformation(
+    headers = {"Location": f"/api/v1/node/{node.name}"}
+
+    res = NodeBootstrapInformation(
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=True),
         nodeman_url=request.app.settings.nodes.nodeman_url,
     )
+
+    return JSONResponse(content=res.model_dump(mode="json"), status_code=status.HTTP_201_CREATED, headers=headers)
 
 
 @router.get(
@@ -267,11 +295,30 @@ async def create_node(
     },
     tags=["backend"],
 )
-def get_node_information(name: str, username: Annotated[str, Depends(get_current_username)]) -> NodeInformation:
+def get_node_information(
+    name: Annotated[str, Depends(get_node_name)],
+    username: Annotated[str, Depends(get_current_username)],
+    tags: Annotated[list[str], Depends(get_node_tags)],
+) -> NodeInformation:
     """Get node information"""
 
-    node = find_node(name)
-    logging.info("%s queried for node %s", username, node.name, extra={"username": username, "nodename": name})
+    if tags:
+        logging.info(
+            "%s queried for node %s tags %s",
+            username,
+            name,
+            tags,
+            extra={"username": username, "nodename": name, "tags": tags},
+        )
+        node = find_node(name=name, tags=tags)
+    else:
+        logging.info(
+            "%s queried for node %s",
+            username,
+            name,
+            extra={"username": username, "nodename": name},
+        )
+        node = find_node(name=name)
     return NodeInformation.from_db_model(node)
 
 
@@ -283,13 +330,20 @@ def get_node_information(name: str, username: Annotated[str, Depends(get_current
     tags=["backend"],
     response_model_exclude_none=False,
 )
-def get_all_nodes(username: Annotated[str, Depends(get_current_username)], tags: str | None = None) -> NodeCollection:
+def get_all_nodes(
+    username: Annotated[str, Depends(get_current_username)],
+    tags: Annotated[list[str], Depends(get_node_tags)],
+) -> NodeCollection:
     """Get all nodes"""
     query = Q(deleted=None)
     if tags:
-        query_tags = sorted(set(tags.split(",")))
-        logging.info("%s queried for nodes with tags %s", username, query_tags, extra={"username": username})
-        query &= Q(tags__all=sorted(set(query_tags)))
+        logging.info(
+            "%s queried for nodes with tags %s",
+            username,
+            tags,
+            extra={"username": username, "tags": tags},
+        )
+        query &= Q(tags__all=tags)
     else:
         logging.info("%s queried for all nodes", username, extra={"username": username})
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
@@ -318,17 +372,18 @@ def get_all_nodes(username: Annotated[str, Depends(get_current_username)], tags:
     tags=["client"],
 )
 async def get_node_public_key(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     accept: Annotated[
         str | None,
         Header(description="Accept"),
     ],
     request: Request,
+    tags: Annotated[list[str], Depends(get_node_tags)],
 ) -> Response:
     """Get public key (JWK/PEM) for node"""
 
     try:
-        node = find_node(name)
+        node = find_node(name=name, tags=tags)
     except HTTPException as exc:
         if exc.status_code == 404 and request.app.settings.legacy_nodes_directory:
             node = find_legacy_node(name, request.app.settings.legacy_nodes_directory)
@@ -345,7 +400,7 @@ async def get_node_public_key(
                     content = JWK(**node.public_key).export_to_pem().decode()
             case PublicKeyFormat.JWK:
                 with tracer.start_as_current_span("get_public_key_jwk"):
-                    jwk_dict = {**node.public_key, "kid": name}
+                    jwk_dict = {**node.public_key, "kid": name, "tags": node.tags}
                     content = json.dumps(jwk_dict)
     except ValueError as exc:
         raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
@@ -363,7 +418,10 @@ async def get_node_public_key(
     },
     tags=["backend"],
 )
-def delete_node(name: str, username: Annotated[str, Depends(get_current_username)]) -> Response:
+def delete_node(
+    name: Annotated[str, Depends(get_node_name)],
+    username: Annotated[str, Depends(get_current_username)],
+) -> Response:
     """Delete node"""
 
     node = find_node(name)
@@ -392,7 +450,7 @@ def delete_node(name: str, username: Annotated[str, Depends(get_current_username
     response_model_exclude_none=True,
 )
 async def enroll_node(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
@@ -500,7 +558,7 @@ async def enroll_node(
     tags=["client"],
 )
 async def renew_node(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
 ) -> NodeCertificate:
     """Renew node certificate"""
@@ -566,7 +624,7 @@ async def renew_node(
     response_model_exclude_none=True,
 )
 async def get_node_configuration(
-    name: str,
+    name: Annotated[str, Depends(get_node_name)],
     request: Request,
     response: Response,
 ) -> NodeConfiguration:
@@ -598,7 +656,7 @@ async def get_node_configuration(
     tags=["client"],
     response_model_exclude_none=True,
 )
-async def get_node_certificate(name: str) -> NodeCertificate:
+async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> NodeCertificate:
     """Get node certificate"""
 
     node = find_node(name)

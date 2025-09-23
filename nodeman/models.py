@@ -7,15 +7,17 @@ from cryptography.x509 import load_pem_x509_certificates
 from pydantic import AnyHttpUrl, BaseModel, Field, StringConstraints, field_validator
 from pydantic.types import AwareDatetime
 
+from . import TAG_CHARACTERS
 from .db_models import TapirCertificate, TapirNode
 from .jose import PrivateJwk, PrivateSymmetric, PublicJwk, PublicJwks, public_key_factory
 from .settings import MqttUrl
 
 MAX_REQUEST_AGE = 300
 
-DOMAIN_NAME_RE = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
+DOMAIN_NAME_PATTERN = re.compile(r"^(?=.{1,255}$)(?!-)[A-Za-z0-9\-]{1,63}(\.[A-Za-z0-9\-]{1,63})*\.?(?<!-)$")
+NODE_TAG_PATTERN = re.compile(rf"^{TAG_CHARACTERS}+$")
 
-NodeTag = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9/\-\.]{1,100}$")]
+NodeTag = Annotated[str, StringConstraints(pattern=NODE_TAG_PATTERN, min_length=1, max_length=100)]
 
 
 class PublicKeyFormat(StrEnum):
@@ -40,7 +42,7 @@ class NodeCreateRequest(BaseModel):
     )
     tags: list[NodeTag] | None = Field(
         title="Node tags",
-        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, or . characters.",
+        description="Optional list of tags for categorizing the node. Each tag must be alphanumeric with optional /, -, _ or . characters.",
         max_length=100,
         default=None,
     )
