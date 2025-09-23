@@ -202,37 +202,6 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     response = client.get(public_key_url, headers={"Accept": "text/html"})
     assert response.status_code == status.HTTP_406_NOT_ACCEPTABLE
 
-    ########################################
-    # Get node public key (filtered by tag)
-
-    # Find single node with tagged test
-    public_key_url = f"{node_url}/public_key?tags=test"
-    response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == status.HTTP_200_OK
-    res = JWK.from_json(response.text)
-    assert res.kid == name
-    assert response.json().get("tags") == sorted(tags)
-
-    # Find single node with tagged test and xyzzy
-    public_key_url = f"{node_url}/public_key?tags=test,xyzzy"
-    response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    # Find single node with tagged xyzzy (does not exist)
-    public_key_url = f"{node_url}/public_key?tags=xyzzy"
-    response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    # Find single node with tagged both foo and baz (does not exist)
-    public_key_url = f"{node_url}/public_key?tags=foo,baz"
-    response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    # Find single node with bad tag
-    public_key_url = f"{node_url}/public_key?tags=räksmörgås"
-    response = client.get(public_key_url, headers={"Accept": "application/json"})
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
     #########################
     # Renew certificate (bad)
 
@@ -529,6 +498,103 @@ def test_admin_tags() -> None:
     response = client.get(urljoin(server, "/api/v1/nodes"), params={"tags": "even,odd"})
     assert response.status_code == status.HTTP_200_OK
     assert len(response.json()["nodes"]) == 0
+
+
+def test_tags_filter() -> None:
+    client = get_test_client()
+    client.auth = BACKEND_CREDENTIALS
+
+    server = ""
+    domain = settings.nodes.domain
+
+    node_tags = {
+        f"node1.{domain}": ["tag1"],
+        f"node2.{domain}": ["tag1", "tag2"],
+    }
+
+    for name, tags in node_tags.items():
+        response = client.post(urljoin(server, "/api/v1/node"), json={"name": name, "tags": tags})
+        assert response.status_code == status.HTTP_201_CREATED
+
+        node_url = urljoin(server, f"/api/v1/node/{name}")
+
+        data_key = JWK.generate(kty="OKP", crv="Ed25519")
+        x509_key = Ed25519PrivateKey.generate()
+
+        create_response = response.json()
+        enrollment_key = JWK(**create_response["key"])
+        data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+        x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+
+        enroll_payload = {
+            "timestamp": datetime.now(tz=UTC).isoformat(),
+            "x509_csr": x509_csr,
+            "public_key": data_key.export_public(as_dict=True),
+        }
+
+        jws = JWS(payload=json.dumps(enroll_payload))
+        jws.add_signature(key=enrollment_key, alg=enrollment_key.alg, protected={"alg": enrollment_key.alg})
+        jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+        enrollment_request = json.loads(jws.serialize())
+
+        node_enroll_url = f"{node_url}/enroll"
+
+        response = client.post(node_enroll_url, json=enrollment_request)
+        assert response.status_code == status.HTTP_200_OK
+
+    # Find public key without tag filter
+    node_name = f"node1.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == node_name
+    assert response.json().get("tags") == sorted(node_tags[node_name])
+
+    # Find public key with tag
+    node_name = f"node1.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key?tags=tag1"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == node_name
+    assert response.json().get("tags") == sorted(node_tags[node_name])
+
+    # Find public key with unknown tag
+    node_name = f"node1.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key?tags=tag2"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    # Find public key with one tag (node having two tags)
+    node_name = f"node2.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key?tags=tag1"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == node_name
+    assert response.json().get("tags") == sorted(node_tags[node_name])
+
+    # Find public key with two tags required
+    node_name = f"node2.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key?tags=tag1,tag2"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    res = JWK.from_json(response.text)
+    assert res.kid == node_name
+    assert response.json().get("tags") == sorted(node_tags[node_name])
+
+    # Find public key with three tags required
+    node_name = f"node2.{domain}"
+    node_url = urljoin(server, f"/api/v1/node/{node_name}")
+    public_key_url = f"{node_url}/public_key?tags=tag1,tag2,tag3"
+    response = client.get(public_key_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 def test_backend_authentication() -> None:
