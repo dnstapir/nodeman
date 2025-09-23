@@ -10,6 +10,7 @@ from bson import ObjectId
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from mongoengine import Q
@@ -220,12 +221,13 @@ def healthcheck(
     },
     tags=["backend"],
     response_model_exclude_none=True,
+    response_model=NodeBootstrapInformation,
 )
 async def create_node(
     username: Annotated[str, Depends(get_current_username)],
     request: Request,
     create_request: NodeCreateRequest | None = None,
-) -> NodeBootstrapInformation:
+) -> Response:
     """
     Create a new node with optional name and tags.
 
@@ -274,11 +276,15 @@ async def create_node(
 
     logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
 
-    return NodeBootstrapInformation(
+    headers = {"Location": f"/api/v1/node/{node.name}"}
+
+    res = NodeBootstrapInformation(
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=True),
         nodeman_url=request.app.settings.nodes.nodeman_url,
     )
+
+    return JSONResponse(content=res.model_dump(mode="json"), status_code=status.HTTP_201_CREATED, headers=headers)
 
 
 @router.get(

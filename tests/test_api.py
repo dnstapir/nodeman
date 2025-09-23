@@ -91,7 +91,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
         assert name == requested_name
     assert "https://" in nodeman_url
 
-    node_url = urljoin(server, f"/api/v1/node/{name}")
+    node_url = response.headers["Location"]
 
     #######################
     # Get node information
@@ -516,8 +516,7 @@ def test_tags_filter() -> None:
         response = client.post(urljoin(server, "/api/v1/node"), json={"name": name, "tags": tags})
         assert response.status_code == status.HTTP_201_CREATED
 
-        node_url = urljoin(server, f"/api/v1/node/{name}")
-
+        node_url = response.headers["Location"]
         data_key = JWK.generate(kty="OKP", crv="Ed25519")
         x509_key = Ed25519PrivateKey.generate()
 
