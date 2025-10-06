@@ -20,7 +20,7 @@ from jwcrypto.jws import JWS
 
 from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import generate_similar_jwk, jwk_to_alg
-from nodeman.models import PublicKeyFormat
+from nodeman.models import NodeCollection, PublicKeyFormat
 from nodeman.server import NodemanServer
 from nodeman.settings import Settings
 from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_certificate, generate_x509_csr
@@ -463,7 +463,7 @@ def test_admin() -> None:
 
     for node in node_collection["nodes"]:
         assert "name" in node
-        assert "activated" in node
+        assert "activated" not in node
 
     for node in node_collection["nodes"]:
         name = node["name"]
@@ -594,6 +594,52 @@ def test_tags_filter() -> None:
     public_key_url = f"{node_url}/public_key?tags=tag1,tag2,tag3"
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_thumbprint_filter() -> None:
+    client = get_test_client()
+    client.auth = BACKEND_CREDENTIALS
+
+    server = ""
+    domain = settings.nodes.domain
+    name = "thumbprint." + domain
+
+    response = client.post(urljoin(server, "/api/v1/node"), json={"name": name})
+    assert response.status_code == status.HTTP_201_CREATED
+
+    node_url = response.headers["Location"]
+    data_key = JWK.generate(kty="OKP", crv="Ed25519")
+    x509_key = Ed25519PrivateKey.generate()
+
+    create_response = response.json()
+    enrollment_key = JWK(**create_response["key"])
+    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+
+    enroll_payload = {
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+        "x509_csr": x509_csr,
+        "public_key": data_key.export_public(as_dict=True),
+    }
+
+    jws = JWS(payload=json.dumps(enroll_payload))
+    jws.add_signature(key=enrollment_key, alg=enrollment_key.alg, protected={"alg": enrollment_key.alg})
+    jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+    enrollment_request = json.loads(jws.serialize())
+
+    node_enroll_url = f"{node_url}/enroll"
+    response = client.post(node_enroll_url, json=enrollment_request)
+    assert response.status_code == status.HTTP_200_OK
+
+    thumbprint = data_key.thumbprint()
+
+    # Find public key by thumbprint
+    nodes_url = urljoin(server, f"/api/v1/nodes?thumbprint={thumbprint}")
+    response = client.get(nodes_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    nodes = NodeCollection.model_validate(response.json())
+    assert len(nodes.nodes) == 1
+    assert nodes.nodes[0].name == name
 
 
 def test_backend_authentication() -> None:

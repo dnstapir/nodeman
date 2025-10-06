@@ -21,7 +21,7 @@ from dnstapir.key_resolver import KEY_ID_VALIDATOR
 
 from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
-from .jose import PublicEC, PublicOKP, PublicRSA
+from .jose import Base64UrlString, PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_PATTERN,
     NODE_TAG_PATTERN,
@@ -328,11 +328,12 @@ def get_node_information(
         status.HTTP_200_OK: {"model": NodeCollection},
     },
     tags=["backend"],
-    response_model_exclude_none=False,
+    response_model_exclude_none=True,
 )
 def get_all_nodes(
     username: Annotated[str, Depends(get_current_username)],
     tags: Annotated[list[str], Depends(get_node_tags)],
+    thumbprint: Annotated[str, Base64UrlString] | None = None,
 ) -> NodeCollection:
     """Get all nodes"""
     query = Q(deleted=None)
@@ -346,6 +347,8 @@ def get_all_nodes(
         query &= Q(tags__all=tags)
     else:
         logging.info("%s queried for all nodes", username, extra={"username": username})
+    if thumbprint:
+        query &= Q(thumbprint=thumbprint)
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
 
 
