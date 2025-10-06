@@ -348,6 +348,12 @@ def get_all_nodes(
     else:
         logging.info("%s queried for all nodes", username, extra={"username": username})
     if thumbprint:
+        logging.info(
+            "%s queried for nodes with thumbprint %s",
+            username,
+            thumbprint,
+            extra={"username": username, "thumbprint": thumbprint},
+        )
         query &= Q(thumbprint=thumbprint)
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
 
