@@ -641,6 +641,14 @@ def test_thumbprint_filter() -> None:
     assert len(nodes.nodes) == 1
     assert nodes.nodes[0].name == name
 
+    # Find public key by unknown thumbprint
+    unknown_thumbprint = JWK.generate(kty="OKP", crv="Ed25519").thumbprint()
+    nodes_url = urljoin(server, f"/api/v1/nodes?thumbprint={unknown_thumbprint}")
+    response = client.get(nodes_url, headers={"Accept": "application/json"})
+    assert response.status_code == status.HTTP_200_OK
+    nodes = NodeCollection.model_validate(response.json())
+    assert len(nodes.nodes) == 0
+
 
 def test_backend_authentication() -> None:
     client = get_test_client()
