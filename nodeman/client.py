@@ -172,7 +172,7 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
     logging.debug("Response: %s", json.dumps(create_response, indent=4))
     logging.info("Created node with name=%s", name)
 
-    return NodeBootstrapInformation(name=name, key=create_response["key"])
+    return NodeBootstrapInformation.model_validate(create_response)
 
 
 def command_delete(args: argparse.Namespace) -> None:
