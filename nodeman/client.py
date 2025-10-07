@@ -387,7 +387,7 @@ def main() -> None:
     admin_get_parser.set_defaults(func=command_get)
     add_admin_arguments(admin_get_parser)
     admin_get_parser.add_argument("--name", metavar="name", help="Node name", required=True)
-    admin_get_parser.add_argument("--tags", metavar="tags", help="Node tags")
+    admin_get_parser.add_argument("--tags", metavar="tags", help="Filter nodes by tags")
 
     admin_delete_parser = subparsers.add_parser("delete", help="Delete node")
     admin_delete_parser.set_defaults(func=command_delete)
@@ -396,8 +396,8 @@ def main() -> None:
 
     admin_list_parser = subparsers.add_parser("list", help="List nodes")
     admin_list_parser.set_defaults(func=command_list)
-    admin_list_parser.add_argument("--tags", metavar="tags", help="Node tags")
-    admin_list_parser.add_argument("--thumbprint", metavar="thumbprint", help="Node thumbprint")
+    admin_list_parser.add_argument("--tags", metavar="tags", help="Filter nodes by tags")
+    admin_list_parser.add_argument("--thumbprint", metavar="thumbprint", help="Filter nodes by data key thumbprint")
     add_admin_arguments(admin_list_parser)
 
     enroll_parser = subparsers.add_parser("enroll", help="Enroll new node")
