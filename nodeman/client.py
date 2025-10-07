@@ -199,8 +199,15 @@ def command_get(args: argparse.Namespace) -> None:
 
     server = args.server or DEFAULT_SERVER
 
+    params: dict[str, str] = {}
+    if args.tags:
+        params["tags"] = args.tags
+
     try:
-        response = client.get(urljoin(server, f"/api/v1/node/{args.name}"))
+        response = client.get(
+            urljoin(server, f"/api/v1/node/{args.name}"),
+            params=params,
+        )
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to get node: %s", str(exc))
@@ -216,8 +223,15 @@ def command_list(args: argparse.Namespace) -> None:
 
     server = args.server or DEFAULT_SERVER
 
+    params: dict[str, str] = {}
+    if args.tags:
+        params["tags"] = args.tags
+
     try:
-        response = client.get(urljoin(server, "/api/v1/nodes"))
+        response = client.get(
+            urljoin(server, "/api/v1/nodes"),
+            params=params,
+        )
         response.raise_for_status()
     except httpx.HTTPError as exc:
         logging.error("Failed to list nodes: %s", str(exc))
@@ -378,6 +392,7 @@ def main() -> None:
     admin_get_parser.set_defaults(func=command_get)
     add_admin_arguments(admin_get_parser)
     admin_get_parser.add_argument("--name", metavar="name", help="Node name", required=True)
+    admin_get_parser.add_argument("--tags", metavar="tags", help="Node tags")
 
     admin_delete_parser = subparsers.add_parser("delete", help="Delete node")
     admin_delete_parser.set_defaults(func=command_delete)
@@ -386,6 +401,7 @@ def main() -> None:
 
     admin_list_parser = subparsers.add_parser("list", help="List nodes")
     admin_list_parser.set_defaults(func=command_list)
+    admin_list_parser.add_argument("--tags", metavar="tags", help="Node tags")
     add_admin_arguments(admin_list_parser)
 
     enroll_parser = subparsers.add_parser("enroll", help="Enroll new node")
