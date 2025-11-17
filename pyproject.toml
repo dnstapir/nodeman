@@ -6,7 +6,7 @@ authors = [{name="Jakob Schlyter", email = "jakob@kirei.se"}]
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
-    "dnstapir[opentelemetry,keymanager]@git+https://github.com/dnstapir/python-dnstapir.git#v1.5.1",
+    "dnstapir[opentelemetry,keymanager]",
     "argon2-cffi>=23.1.0",
     "fastapi>=0.115.11",
     "httpx>=0.28.1",
@@ -18,6 +18,9 @@ dependencies = [
     "uvicorn>=0.34.0",
     "pyyaml>=6.0.2",
 ]
+
+[tool.uv.sources]
+dnstapir = { git = "https://github.com/dnstapir/python-dnstapir.git", tag = "v1.5.1" }
 
 [project.urls]
 repository = "https://github.com/dnstapir/nodeman.git"
