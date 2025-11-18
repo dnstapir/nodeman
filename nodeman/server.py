@@ -11,6 +11,7 @@ from opentelemetry import trace
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import nodeman.extras
+import nodeman.healthcheck
 import nodeman.nodes
 from dnstapir.logging import setup_logging
 from dnstapir.opentelemetry import configure_opentelemetry
@@ -37,6 +38,7 @@ class NodemanServer(FastAPI):
         self.add_middleware(ProxyHeadersMiddleware, trusted_hosts=[str(x) for x in self.settings.http.trusted_hosts])
 
         self.include_router(nodeman.nodes.router)
+        self.include_router(nodeman.healthcheck.router)
         self.include_router(nodeman.extras.router)
 
         if self.settings.otlp:
