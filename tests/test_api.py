@@ -55,7 +55,7 @@ def get_test_client() -> TestClient:
     app = NodemanServer(settings)
     app.ca_client = get_ca_client()
     app.connect_mongodb()
-    return TestClient(app)
+    return TestClient(app, client=("127.0.0.1", 4242))
 
 
 class FailedToCreateNode(RuntimeError):

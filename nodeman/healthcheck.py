@@ -1,5 +1,4 @@
 import ipaddress
-from contextlib import suppress
 
 from fastapi import APIRouter, HTTPException, Request, status
 
@@ -16,19 +15,28 @@ router = APIRouter()
 def healthcheck(
     request: Request,
 ) -> HealthcheckResult:
-    """Perform healthcheck with database and S3 access"""
+    """Perform health check with database and S3 access"""
 
     if request.client and request.client.host:
-        with suppress(ValueError):
+        try:
             client_address = ipaddress.ip_address(request.client.host)
-            for address in request.app.settings.http.healthcheck_hosts:
-                if client_address in address:
-                    break
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You are not my physician",
-                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid client IP address: {request.client.host}",
+            ) from exc
+
+        for address in request.app.settings.http.healthcheck_hosts:
+            if client_address in address:
+                break
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not my physician",
+            )
+    else:
+        # Always allow health check if no client IP is provided
+        pass
 
     try:
         node_count = TapirNode.objects().count()
