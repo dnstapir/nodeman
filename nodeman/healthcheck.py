@@ -1,9 +1,12 @@
 import ipaddress
+import logging
 
 from fastapi import APIRouter, HTTPException, Request, status
 
 from .db_models import TapirCertificate, TapirNode
 from .models import HealthcheckResult
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -36,7 +39,7 @@ def healthcheck(
             )
     else:
         # Always allow health check if no client IP is provided
-        pass
+        logger.warning("No client IP provided in healthcheck request")
 
     try:
         node_count = TapirNode.objects().count()
