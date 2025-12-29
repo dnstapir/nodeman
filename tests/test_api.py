@@ -762,9 +762,9 @@ def test_bad_username() -> None:
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
-def _test_enroll_node_name(deterministic: bool, name_re: str, domain: str) -> None:
+def _test_enroll_node_name(deterministic_node_names: bool, name_re: str, domain: str) -> None:
     admin_client = get_test_client()
-    admin_client.app.settings.nodes.deterministic_node_name = deterministic
+    admin_client.app.settings.nodes.deterministic_node_names = deterministic_node_names
     admin_client.app.settings.nodes.domain = domain
     admin_client.auth = BACKEND_CREDENTIALS
 
@@ -791,7 +791,7 @@ def _test_enroll_node_name(deterministic: bool, name_re: str, domain: str) -> No
 
 def test_enroll_random_node_name() -> None:
     _test_enroll_node_name(
-        deterministic=False,
+        deterministic_node_names=False,
         name_re=r"^[a-f0-9]{24}\.example\.com$",
         domain="example.com",
     )
@@ -799,7 +799,7 @@ def test_enroll_random_node_name() -> None:
 
 def test_enroll_deterministic_node_name() -> None:
     _test_enroll_node_name(
-        deterministic=True,
+        deterministic_node_names=True,
         name_re=r"^\w+\-\w+\.example\.com$",
         domain="example.com",
     )

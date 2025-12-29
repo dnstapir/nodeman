@@ -203,7 +203,7 @@ async def create_node(
     node_enrollment_key = request.app.generate_enrollment_key(kid=str(node_enrollment_id))
 
     if name is None:
-        if request.app.settings.nodes.deterministic_node_name:
+        if request.app.settings.nodes.deterministic_node_names:
             node = TapirNode.create_next_node(domain=domain, tags=tags)
         else:
             node = TapirNode.create_random_node(domain=domain, tags=tags)
