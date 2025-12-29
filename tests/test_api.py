@@ -741,7 +741,7 @@ def test_create_node_invalid_tags() -> None:
 
     node_create_request = {"tags": ["räksmörgås"]}
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_healthcehck() -> None:
