@@ -788,6 +788,11 @@ def _test_enroll_node_name(deterministic_node_names: bool, name_re: str, domain:
         assert name not in generated_names
         generated_names.add(name)
 
+    # Clean up created nodes
+    for name in generated_names:
+        response = admin_client.delete(urljoin(server, f"/api/v1/node/{name}"))
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
 
 def test_enroll_random_node_name() -> None:
     _test_enroll_node_name(
