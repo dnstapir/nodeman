@@ -203,16 +203,16 @@ async def create_node(
     node_enrollment_key = request.app.generate_enrollment_key(kid=str(node_enrollment_id))
 
     if name is None:
-        node = TapirNode.create_next_node(domain=domain)
+        if request.app.settings.nodes.deterministic_node_names:
+            node = TapirNode.create_next_node(domain=domain, tags=tags)
+        else:
+            node = TapirNode.create_random_node(domain=domain, tags=tags)
     elif name.endswith(f".{domain}") and DOMAIN_NAME_PATTERN.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
-        node = TapirNode(name=name, domain=domain).save()
+        node = TapirNode(name=name, domain=domain, tags=tags).save()
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
-
-    node.tags = tags
-    node.save()
 
     TapirNodeEnrollment(
         id=node_enrollment_id,
@@ -222,7 +222,13 @@ async def create_node(
 
     nodes_created.add(1, {"creator": username})
 
-    logging.info("%s created node %s", username, node.name, extra={"username": username, "nodename": node.name})
+    logging.info(
+        "%s created node %s tags %s",
+        username,
+        node.name,
+        tags,
+        extra={"username": username, "nodename": node.name, "tags": tags},
+    )
 
     headers = {"Location": f"/api/v1/node/{node.name}"}
 

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin
@@ -740,7 +741,7 @@ def test_create_node_invalid_tags() -> None:
 
     node_create_request = {"tags": ["räksmörgås"]}
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 def test_healthcehck() -> None:
@@ -759,3 +760,51 @@ def test_bad_username() -> None:
     node_create_request = {"name": "hostname.test.dnstapir.se"}
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def _test_enroll_node_name(deterministic_node_names: bool, name_re: str, domain: str) -> None:
+    admin_client = get_test_client()
+    admin_client.app.settings.nodes.deterministic_node_names = deterministic_node_names
+    admin_client.app.settings.nodes.domain = domain
+    admin_client.auth = BACKEND_CREDENTIALS
+
+    server = ""
+
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("Testing random enrollment")
+
+    tags = ["test", "random"]
+    generated_names: set[str] = set()
+
+    name_pattern = re.compile(name_re)
+
+    for _ in range(100):
+        node_create_request = {"tags": tags}
+        response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+        assert response.status_code == status.HTTP_201_CREATED
+        create_response = response.json()
+        name = create_response["name"]
+        assert name_pattern.match(name) is not None
+        assert name not in generated_names
+        generated_names.add(name)
+
+    # Clean up created nodes
+    for name in generated_names:
+        response = admin_client.delete(urljoin(server, f"/api/v1/node/{name}"))
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+
+def test_enroll_random_node_name() -> None:
+    _test_enroll_node_name(
+        deterministic_node_names=False,
+        name_re=r"^[a-f0-9]{24}\.example\.com$",
+        domain="example.com",
+    )
+
+
+def test_enroll_deterministic_node_name() -> None:
+    _test_enroll_node_name(
+        deterministic_node_names=True,
+        name_re=r"^\w+\-\w+\.example\.com$",
+        domain="example.com",
+    )

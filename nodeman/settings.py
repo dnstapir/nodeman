@@ -111,6 +111,7 @@ class NodesSettings(BaseModel):
         le=86400,
         description="Configuration cache TTL in seconds",
     )
+    deterministic_node_names: bool = Field(default=True)
 
 
 class EnrollmentSettings(BaseModel):

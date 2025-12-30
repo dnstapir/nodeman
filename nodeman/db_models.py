@@ -2,6 +2,7 @@ import logging
 from contextlib import suppress
 from typing import Self
 
+import bson
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtensionOID
@@ -9,7 +10,7 @@ from mongoengine import DateTimeField, DictField, Document, SortedListField, Str
 from mongoengine.errors import NotUniqueError
 
 from . import TAG_CHARACTERS
-from .names import get_deterministic_name, get_random_name
+from .names import get_deterministic_name
 from .x509 import get_x509_extensions_hex
 
 logger = logging.getLogger(__name__)
@@ -37,19 +38,19 @@ class TapirNode(Document):
     )
 
     @classmethod
-    def create_random_node(cls, domain: str) -> Self:
-        name = get_random_name() + "." + domain
-        return cls(name=name)
-
-    @classmethod
-    def create_next_node(cls, domain: str) -> Self:
+    def create_next_node(cls, domain: str, tags: list[str] | None = None) -> Self:
         next_node_idx = len(cls.objects(domain=domain))
         while True:
             name = ".".join([get_deterministic_name(next_node_idx), domain])
             with suppress(NotUniqueError):
-                return cls(name=name, domain=domain).save()
+                return cls(name=name, domain=domain, tags=tags).save()
             next_node_idx += 1
             logging.debug("Name conflict, trying %d", next_node_idx)
+
+    @classmethod
+    def create_random_node(cls, domain: str, tags: list[str] | None = None) -> Self:
+        name = ".".join([str(bson.ObjectId()), domain])
+        return cls(name=name, domain=domain, tags=tags).save()
 
 
 class TapirNodeEnrollment(Document):
