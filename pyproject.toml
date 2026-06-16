@@ -15,7 +15,7 @@ dependencies = [
     "namesgenerator>=0.3",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
-    "uvicorn>=0.44.0",
+    "uvicorn>=0.49.0",
     "pyyaml>=6.0.3",
 ]
 
