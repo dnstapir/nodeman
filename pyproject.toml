@@ -8,7 +8,7 @@ requires-python = ">=3.13,<4.0"
 dependencies = [
     "dnstapir[opentelemetry,keymanager]",
     "argon2-cffi>=25.1.0",
-    "fastapi>=0.137.1",
+    "fastapi>=0.138.0",
     "httpx>=0.28.1",
     "jwcrypto>=1.5.7",
     "mongoengine>=0.29.3",
