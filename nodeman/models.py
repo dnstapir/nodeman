@@ -60,9 +60,10 @@ class NodeRequest(BaseModel):
 
     @field_validator("timestamp")
     @classmethod
-    def validate_timestamp(cls, ts: datetime):
+    def validate_timestamp(cls, ts: datetime) -> datetime:
         if (td := abs((datetime.now(tz=UTC) - ts).total_seconds())) > MAX_REQUEST_AGE:
             raise ValueError(f"Request too old or in the future, delta={td}")
+        return ts
 
 
 class EnrollmentRequest(NodeRequest):
