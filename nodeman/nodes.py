@@ -213,7 +213,8 @@ async def create_node(
         try:
             node = TapirNode(name=name, domain=domain, tags=tags).save()
         except NotUniqueError as exc:
-            raise HTTPException(status.HTTP_409_CONFLICT, detail="Node name already exists") from exc
+            logging.warning("Node name %s already exists", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Node name {name} already exists") from exc
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
