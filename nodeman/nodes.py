@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS, InvalidJWSSignature
 from mongoengine import Q
+from mongoengine.errors import NotUniqueError
 from opentelemetry import metrics, trace
 from pydantic_core import ValidationError
 
@@ -209,7 +210,11 @@ async def create_node(
             node = TapirNode.create_random_node(domain=domain, tags=tags)
     elif name.endswith(f".{domain}") and DOMAIN_NAME_PATTERN.match(name):
         logging.debug("Explicit node name %s requested", name, extra={"nodename": name})
-        node = TapirNode(name=name, domain=domain, tags=tags).save()
+        try:
+            node = TapirNode(name=name, domain=domain, tags=tags).save()
+        except NotUniqueError as exc:
+            logging.warning("Node name %s already exists", name, extra={"nodename": name})
+            raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Node name {name} already exists") from exc
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
