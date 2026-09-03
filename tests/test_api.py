@@ -815,7 +815,9 @@ def test_enroll_node_name_reuse() -> None:
     admin_client.auth = BACKEND_CREDENTIALS
     server = ""
 
-    node_create_request = {"name": "reuse.example.com"}
+    requested_name = ".".join(["name-to-be-reused", settings.nodes.domain])
+
+    node_create_request = {"name": requested_name}
 
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     assert response.status_code == status.HTTP_201_CREATED
