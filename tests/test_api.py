@@ -810,12 +810,12 @@ def test_enroll_deterministic_node_name() -> None:
     )
 
 
-def test_enroll_node_name_reuse() -> None:
+def test_enroll_node_name_reuse_after_delete() -> None:
     admin_client = get_test_client()
     admin_client.auth = BACKEND_CREDENTIALS
     server = ""
 
-    requested_name = ".".join(["name-to-be-reused", settings.nodes.domain])
+    requested_name = ".".join(["name-to-be-reused-after-delete", settings.nodes.domain])
 
     node_create_request = {"name": requested_name}
 
@@ -829,6 +829,22 @@ def test_enroll_node_name_reuse() -> None:
 
     response = admin_client.delete(node_url)
     assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_409_CONFLICT
+
+
+def test_enroll_node_name_reuse_before_delete() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    requested_name = ".".join(["name-to-be-reused-before-delete", settings.nodes.domain])
+
+    node_create_request = {"name": requested_name}
+
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_201_CREATED
 
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     assert response.status_code == status.HTTP_409_CONFLICT
