@@ -270,6 +270,7 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
         raise SystemExit(1)
 
     data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
+    data_key["alg"] = jwk_to_alg(data_key)
     x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
 
     result = enroll(
