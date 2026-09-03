@@ -808,3 +808,25 @@ def test_enroll_deterministic_node_name() -> None:
         name_re=r"^\w+\-\w+\.example\.com$",
         domain="example.com",
     )
+
+
+def test_enroll_node_name_reuse() -> None:
+    admin_client = get_test_client()
+    admin_client.auth = BACKEND_CREDENTIALS
+    server = ""
+
+    node_create_request = {"name": "reuse.example.com"}
+
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_201_CREATED
+
+    node_url = response.headers["Location"]
+
+    response = admin_client.delete(node_url)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    response = admin_client.delete(node_url)
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
+    assert response.status_code == status.HTTP_409_CONFLICT
