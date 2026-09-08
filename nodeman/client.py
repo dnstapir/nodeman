@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urljoin
 
-import httpx
+import httpx2
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
@@ -47,9 +47,9 @@ def enroll(
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
 
     try:
-        response = httpx.post(url, json=enrollment_request)
+        response = httpx2.post(url, json=enrollment_request)
         response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
+    except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
         raise SystemExit(1) from exc
 
@@ -80,9 +80,9 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime:
 
     url = urljoin(server, f"/api/v1/node/{name}/renew")
     try:
-        response = httpx.post(url, json=renewal_request)
+        response = httpx2.post(url, json=renewal_request)
         response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
+    except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
         raise SystemExit(1) from exc
 
@@ -112,7 +112,7 @@ def save_x509(args: argparse.Namespace, x509_key: PrivateKey, x509_certificate: 
         fp.write(x509_ca_certificate)
 
 
-def get_admin_client(args: argparse.Namespace) -> httpx.Client:
+def get_admin_client(args: argparse.Namespace) -> httpx2.Client:
     """Get admin client"""
 
     username = getattr(args, "username", None) or os.environ.get("NODEMAN_USERNAME")
@@ -124,7 +124,7 @@ def get_admin_client(args: argparse.Namespace) -> httpx.Client:
 
     auth = (username, password)
 
-    return httpx.Client(auth=auth)
+    return httpx2.Client(auth=auth)
 
 
 def generate_x509_key(kty: str, crv: str) -> PrivateKey:
@@ -162,7 +162,7 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
     try:
         response = client.post(urljoin(server, "/api/v1/node"), json=payload)
         response.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logging.error("Failed to create node: %s", str(exc))
         raise SystemExit(1) from exc
 
@@ -185,7 +185,7 @@ def command_delete(args: argparse.Namespace) -> None:
     try:
         response = client.delete(urljoin(server, f"/api/v1/node/{args.name}"))
         response.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logging.error("Failed to delete node: %s", str(exc))
         raise SystemExit(1) from exc
 
@@ -206,7 +206,7 @@ def command_get(args: argparse.Namespace) -> None:
     try:
         response = client.get(urljoin(server, f"/api/v1/node/{args.name}"), params=params)
         response.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logging.error("Failed to get node: %s", str(exc))
         raise SystemExit(1) from exc
 
@@ -228,7 +228,7 @@ def command_list(args: argparse.Namespace) -> None:
     try:
         response = client.get(urljoin(server, "/api/v1/nodes"), params=params)
         response.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         logging.error("Failed to list nodes: %s", str(exc))
         raise SystemExit(1) from exc
 

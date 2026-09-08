@@ -7,7 +7,7 @@ import uuid
 from datetime import timedelta
 from urllib.parse import urljoin
 
-import httpx
+import httpx2
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from jwcrypto.jwk import JWK
@@ -34,6 +34,7 @@ class StepClient(CertificateAuthorityClient):
         self.ca_bundle_filename = self._get_root_ca_cert()
         self.token_ttl = 300
         self.verify = self.ca_bundle_filename if ca_server_verify else False
+        self.httpx2_client = httpx2.Client()
 
     def sign_csr(
         self,
@@ -53,7 +54,7 @@ class StepClient(CertificateAuthorityClient):
 
         csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM).decode()
         token = self._get_token(name)
-        response = httpx.post(
+        response = self.httpx2_client.post(
             urljoin(self.ca_url, "1.0/sign"),
             verify=self.verify,
             json={"csr": csr_pem, "ott": token},
@@ -86,7 +87,7 @@ class StepClient(CertificateAuthorityClient):
 
     def _get_root_ca_cert(self) -> str:
         """Get root CA cert and return temporary filename"""
-        response = httpx.get(urljoin(self.ca_url, f"root/{self.ca_fingerprint}"), verify=False)
+        response = self.httpx2_client.get(urljoin(self.ca_url, f"root/{self.ca_fingerprint}"), verify=False)
         response.raise_for_status()
         root_ca_pem = response.json()["ca"]
         self._compare_fingerprints(root_ca_pem, self.ca_fingerprint)
