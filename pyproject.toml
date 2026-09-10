@@ -9,7 +9,7 @@ dependencies = [
     "dnstapir[opentelemetry,keymanager]",
     "argon2-cffi>=25.1.0",
     "fastapi>=0.137.1",
-    "httpx>=0.28.1",
+    "httpx2[http2]>=2.12.0",
     "jwcrypto>=1.5.7",
     "mongoengine>=0.29.3",
     "namesgenerator>=0.3",

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import httpx
+import httpx2
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from jwcrypto.jwk import JWK
@@ -39,7 +39,7 @@ def test_step_ca() -> None:
             provisioner_name=settings.provisioner_name,
             provisioner_jwk=provisioner_jwk,
         )
-    except httpx.ConnectError:
+    except httpx2.ConnectError:
         pytest.skip("StepCA not responding")
 
     name = "hostname.example.com"
