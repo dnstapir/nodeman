@@ -31,10 +31,10 @@ class StepClient(CertificateAuthorityClient):
         self.ca_fingerprint = ca_fingerprint
         self.provisioner_name = provisioner_name
         self.provisioner_jwk = provisioner_jwk
-        self.ca_bundle_filename = self._get_root_ca_cert()
         self.token_ttl = 300
         self.verify = self.ca_bundle_filename if ca_server_verify else False
         self.httpx2_client = httpx2.Client()
+        self.ca_bundle_filename = self._get_root_ca_cert()
 
     def sign_csr(
         self,
