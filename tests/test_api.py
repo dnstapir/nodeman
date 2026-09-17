@@ -30,6 +30,8 @@ ADMIN_TEST_NODE_COUNT = 100
 ADMIN_TEST_NODE_COUNT_TAGS = 10
 BACKEND_CREDENTIALS = ("username", "password")
 
+USER_AGENT = "pytest/0.0"
+
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
 # Set test configuration file - note that environment variables with NODEMAN_ prefix
@@ -56,7 +58,7 @@ def get_test_client() -> TestClient:
     app = NodemanServer(settings)
     app.ca_client = get_ca_client()
     app.connect_mongodb()
-    return TestClient(app, client=("127.0.0.1", 4242))
+    return TestClient(app, client=("127.0.0.1", 4242), headers={"User-Agent": USER_AGENT})
 
 
 class FailedToCreateNode(RuntimeError):
