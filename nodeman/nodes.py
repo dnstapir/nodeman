@@ -1,3 +1,4 @@
+import email.utils
 import json
 import logging
 from datetime import UTC, datetime, timedelta
@@ -53,6 +54,17 @@ node_configurations_requested = meter.create_counter(
 )
 
 router = APIRouter()
+
+
+def http_expires(dt: datetime) -> str:
+    return email.utils.format_datetime(dt, usegmt=True)
+
+
+def get_cache_headers(request: Request, ttl: int, public: bool = True) -> dict[str, str]:
+    return {
+        "Expires": http_expires(datetime.now(tz=UTC) + timedelta(seconds=ttl)),
+        "Cache-Control": f"public, max-age={ttl}" if public else "no-store",
+    }
 
 
 def find_node(name: str, tags: list[str] | None = None) -> TapirNode:
@@ -374,7 +386,10 @@ async def get_node_public_key(
         raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
 
     nodes_public_key_queries.add(1, {"media_type": str(media_type)})
-    return Response(content=content, media_type=media_type)
+
+    headers = get_cache_headers(request, ttl=request.app.settings.nodes.node_public_key_ttl)
+
+    return Response(content=content, media_type=media_type, headers=headers)
 
 
 @router.delete(
@@ -420,6 +435,7 @@ def delete_node(
 async def enroll_node(
     name: Annotated[str, Depends(get_node_name)],
     request: Request,
+    response: Response,
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
 
@@ -508,6 +524,9 @@ async def enroll_node(
 
     nodes_enrolled.add(1)
 
+    headers = get_cache_headers(request, ttl=request.app.settings.nodes.configuration_ttl)
+    response.headers.update(headers)
+
     return NodeEnrollmentResult(
         **create_node_configuration(name=name, request=request).model_dump(),
         x509_certificate=node_certificate.x509_certificate,
@@ -528,6 +547,7 @@ async def enroll_node(
 async def renew_node(
     name: Annotated[str, Depends(get_node_name)],
     request: Request,
+    response: Response,
 ) -> NodeCertificate:
     """Renew node certificate"""
 
@@ -608,9 +628,8 @@ async def get_node_configuration(
 
     node_configurations_requested.add(1)
 
-    # Cache response for 5 minutes
-    max_age = request.app.settings.nodes.configuration_ttl
-    response.headers["Cache-Control"] = f"public, max-age={max_age}"
+    headers = get_cache_headers(request, ttl=request.app.settings.nodes.configuration_ttl)
+    response.headers.update(headers)
 
     return res
 

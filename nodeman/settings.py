@@ -111,6 +111,11 @@ class NodesSettings(BaseModel):
         le=86400,
         description="Configuration cache TTL in seconds",
     )
+    node_public_key_ttl: int = Field(
+        default=3600,
+        gt=0,
+        description="Node public key cache TTL in seconds",
+    )
     deterministic_node_names: bool = Field(default=True)
 
 

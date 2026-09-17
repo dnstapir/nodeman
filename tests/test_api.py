@@ -551,6 +551,7 @@ def test_tags_filter() -> None:
     res = JWK.from_json(response.text)
     assert res.kid == node_name
     assert response.json().get("tags") == sorted(node_tags[node_name])
+    assert "expires" in response.headers
 
     # Find public key with tag
     node_name = f"node1.{domain}"
