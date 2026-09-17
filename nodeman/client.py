@@ -29,8 +29,6 @@ def enroll(
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
 
-    client = get_client()
-
     enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -52,8 +50,9 @@ def enroll(
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
 
     try:
-        response = client.post(url, json=enrollment_request)
-        response.raise_for_status()
+        with get_httpx2_client() as client:
+            response = client.post(url, json=enrollment_request)
+            response.raise_for_status()
     except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
         raise SystemExit(1) from exc
@@ -67,8 +66,6 @@ def enroll(
 
 def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime: int | None) -> NodeCertificate:
     """Renew existing node"""
-
-    client = get_client()
 
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -87,8 +84,9 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime:
 
     url = urljoin(server, f"/api/v1/node/{name}/renew")
     try:
-        response = client.post(url, json=renewal_request)
-        response.raise_for_status()
+        with get_httpx2_client() as client:
+            response = client.post(url, json=renewal_request)
+            response.raise_for_status()
     except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
         raise SystemExit(1) from exc
@@ -119,13 +117,13 @@ def save_x509(args: argparse.Namespace, x509_key: PrivateKey, x509_certificate: 
         fp.write(x509_ca_certificate)
 
 
-def get_client() -> httpx2.Client:
+def get_httpx2_client() -> httpx2.Client:
     """Get non-admin client"""
 
     return httpx2.Client(headers={"User-Agent": USER_AGENT}, http2=True)
 
 
-def get_admin_client(args: argparse.Namespace) -> httpx2.Client:
+def get_httpx2_admin_client(args: argparse.Namespace) -> httpx2.Client:
     """Get admin client"""
 
     username = getattr(args, "username", None) or os.environ.get("NODEMAN_USERNAME")
@@ -159,8 +157,6 @@ def generate_x509_key(kty: str, crv: str) -> PrivateKey:
 def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
     """Create node"""
 
-    client = get_admin_client(args)
-
     payload = {
         **({"name": args.name} if args.name else {}),
         **(
@@ -173,8 +169,9 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
     server = args.server or DEFAULT_SERVER
 
     try:
-        response = client.post(urljoin(server, "/api/v1/node"), json=payload)
-        response.raise_for_status()
+        with get_httpx2_admin_client(args) as client:
+            response = client.post(urljoin(server, "/api/v1/node"), json=payload)
+            response.raise_for_status()
     except httpx2.HTTPError as exc:
         logging.error("Failed to create node: %s", str(exc))
         raise SystemExit(1) from exc
@@ -191,13 +188,12 @@ def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
 def command_delete(args: argparse.Namespace) -> None:
     """Delete node"""
 
-    client = get_admin_client(args)
-
     server = args.server or DEFAULT_SERVER
 
     try:
-        response = client.delete(urljoin(server, f"/api/v1/node/{args.name}"))
-        response.raise_for_status()
+        with get_httpx2_admin_client(args) as client:
+            response = client.delete(urljoin(server, f"/api/v1/node/{args.name}"))
+            response.raise_for_status()
     except httpx2.HTTPError as exc:
         logging.error("Failed to delete node: %s", str(exc))
         raise SystemExit(1) from exc
@@ -208,8 +204,6 @@ def command_delete(args: argparse.Namespace) -> None:
 def command_get(args: argparse.Namespace) -> None:
     """Get node"""
 
-    client = get_admin_client(args)
-
     server = args.server or DEFAULT_SERVER
 
     params: dict[str, str] = {
@@ -217,8 +211,9 @@ def command_get(args: argparse.Namespace) -> None:
     }
 
     try:
-        response = client.get(urljoin(server, f"/api/v1/node/{args.name}"), params=params)
-        response.raise_for_status()
+        with get_httpx2_admin_client(args) as client:
+            response = client.get(urljoin(server, f"/api/v1/node/{args.name}"), params=params)
+            response.raise_for_status()
     except httpx2.HTTPError as exc:
         logging.error("Failed to get node: %s", str(exc))
         raise SystemExit(1) from exc
@@ -229,8 +224,6 @@ def command_get(args: argparse.Namespace) -> None:
 def command_list(args: argparse.Namespace) -> None:
     """List nodes"""
 
-    client = get_admin_client(args)
-
     server = args.server or DEFAULT_SERVER
 
     params: dict[str, str] = {
@@ -239,8 +232,9 @@ def command_list(args: argparse.Namespace) -> None:
     }
 
     try:
-        response = client.get(urljoin(server, "/api/v1/nodes"), params=params)
-        response.raise_for_status()
+        with get_httpx2_admin_client(args) as client:
+            response = client.get(urljoin(server, "/api/v1/nodes"), params=params)
+            response.raise_for_status()
     except httpx2.HTTPError as exc:
         logging.error("Failed to list nodes: %s", str(exc))
         raise SystemExit(1) from exc
