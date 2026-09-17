@@ -550,7 +550,6 @@ async def enroll_node(
 async def renew_node(
     name: Annotated[str, Depends(get_node_name)],
     request: Request,
-    response: Response,
 ) -> NodeCertificate:
     """Renew node certificate"""
 
