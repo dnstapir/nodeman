@@ -387,7 +387,10 @@ async def get_node_public_key(
 
     nodes_public_key_queries.add(1, {"media_type": str(media_type)})
 
-    headers = get_cache_headers(request, ttl=request.app.settings.nodes.node_public_key_ttl)
+    headers = {
+        **get_cache_headers(request, ttl=request.app.settings.nodes.node_public_key_ttl),
+        "Vary": "Accept",
+    }
 
     return Response(content=content, media_type=media_type, headers=headers)
 

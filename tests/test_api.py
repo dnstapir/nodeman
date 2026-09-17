@@ -183,6 +183,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == status.HTTP_200_OK
+    assert response.headers.get("Vary") == "Accept"
     res = JWK.from_json(response.text)
     assert res.kid == name
 
