@@ -18,13 +18,18 @@ from nodeman.jose import jwk_to_alg
 from nodeman.models import NodeBootstrapInformation, NodeCertificate, NodeConfiguration, NodeEnrollmentResult
 from nodeman.x509 import PrivateKey, generate_x509_csr
 
+from . import __version__
+
 DEFAULT_SERVER = os.environ.get("NODEMAN_SERVER", "http://127.0.0.1:8080")
+USER_AGENT = f"nodeman-client/{__version__}"
 
 
 def enroll(
     name: str, server: str, enrollment_key: JWK, data_key: JWK, x509_key: PrivateKey, lifetime: int | None
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
+
+    client = get_client()
 
     enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
     data_alg = jwk_to_alg(data_key)
@@ -47,7 +52,7 @@ def enroll(
     url = urljoin(server, f"/api/v1/node/{name}/enroll")
 
     try:
-        response = httpx2.post(url, json=enrollment_request)
+        response = client.post(url, json=enrollment_request)
         response.raise_for_status()
     except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
@@ -62,6 +67,8 @@ def enroll(
 
 def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime: int | None) -> NodeCertificate:
     """Renew existing node"""
+
+    client = get_client()
 
     data_alg = jwk_to_alg(data_key)
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -80,7 +87,7 @@ def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime:
 
     url = urljoin(server, f"/api/v1/node/{name}/renew")
     try:
-        response = httpx2.post(url, json=renewal_request)
+        response = client.post(url, json=renewal_request)
         response.raise_for_status()
     except httpx2.HTTPStatusError as exc:
         logging.error(response.text)
@@ -112,6 +119,12 @@ def save_x509(args: argparse.Namespace, x509_key: PrivateKey, x509_certificate: 
         fp.write(x509_ca_certificate)
 
 
+def get_client() -> httpx2.Client:
+    """Get non-admin client"""
+
+    return httpx2.Client(headers={"User-Agent": USER_AGENT}, http2=True)
+
+
 def get_admin_client(args: argparse.Namespace) -> httpx2.Client:
     """Get admin client"""
 
@@ -124,7 +137,7 @@ def get_admin_client(args: argparse.Namespace) -> httpx2.Client:
 
     auth = (username, password)
 
-    return httpx2.Client(auth=auth)
+    return httpx2.Client(auth=auth, headers={"User-Agent": USER_AGENT}, http2=True)
 
 
 def generate_x509_key(kty: str, crv: str) -> PrivateKey:
