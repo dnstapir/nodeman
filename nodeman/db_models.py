@@ -36,8 +36,8 @@ class TapirRequestMetadata(EmbeddedDocument):
     def from_request(cls, request: Request) -> Self:
         return cls(
             user_agent=(request.headers.get("user-agent") or "")[:1024] or None,
-            ip_address=request.client.host if request.client else None,
-            port=request.client.port if request.client else None,
+            ip_address=request.client.host if hasattr(request, "client") and request.client else None,
+            port=request.client.port if hasattr(request, "client") and request.client else None,
         )
 
 
