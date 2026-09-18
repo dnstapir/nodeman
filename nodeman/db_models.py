@@ -6,7 +6,18 @@ import bson
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtensionOID
-from mongoengine import DateTimeField, DictField, Document, SortedListField, StringField, ValidationError
+from fastapi import Request
+from mongoengine import (
+    DateTimeField,
+    DictField,
+    Document,
+    EmbeddedDocument,
+    EmbeddedDocumentField,
+    IntField,
+    SortedListField,
+    StringField,
+    ValidationError,
+)
 from mongoengine.errors import NotUniqueError
 
 from . import TAG_CHARACTERS
@@ -14,6 +25,20 @@ from .names import get_deterministic_name
 from .x509 import get_x509_extensions_hex
 
 logger = logging.getLogger(__name__)
+
+
+class TapirRequestMetadata(EmbeddedDocument):
+    user_agent = StringField(max_length=1024)
+    ip_address = StringField()
+    port = IntField()
+
+    @classmethod
+    def from_request(cls, request: Request) -> Self:
+        return cls(
+            user_agent=(request.headers.get("user-agent") or "")[:1024] or None,
+            ip_address=request.client.host if hasattr(request, "client") and request.client else None,
+            port=request.client.port if hasattr(request, "client") and request.client else None,
+        )
 
 
 class TapirNode(Document):
@@ -36,6 +61,8 @@ class TapirNode(Document):
         StringField(regex=rf"^{TAG_CHARACTERS}+$", min_length=1, max_length=100),
         max_length=100,
     )
+
+    request_metadata = EmbeddedDocumentField(TapirRequestMetadata)
 
     @classmethod
     def create_next_node(cls, domain: str, tags: list[str] | None = None) -> Self:
@@ -82,6 +109,8 @@ class TapirCertificate(Document):
 
     authority_key_identifier = StringField()
     subject_key_identifier = StringField()
+
+    request_metadata = EmbeddedDocumentField(TapirRequestMetadata)
 
     @classmethod
     def from_x509_certificate(cls, name: str, x509_certificate: x509.Certificate) -> Self:

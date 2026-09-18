@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
+from nodeman.db_models import TapirCertificate, TapirNode
 from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import generate_similar_jwk, jwk_to_alg
 from nodeman.models import NodeCollection, PublicKeyFormat
@@ -29,6 +30,11 @@ from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_c
 ADMIN_TEST_NODE_COUNT = 100
 ADMIN_TEST_NODE_COUNT_TAGS = 10
 BACKEND_CREDENTIALS = ("username", "password")
+
+USER_AGENT = "pytest/0.0"
+
+CLIENT_IP_ADDRESS = "127.0.0.1"
+CLIENT_IP_PORT = 4242
 
 PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
 
@@ -56,7 +62,7 @@ def get_test_client() -> TestClient:
     app = NodemanServer(settings)
     app.ca_client = get_ca_client()
     app.connect_mongodb()
-    return TestClient(app, client=("127.0.0.1", 4242))
+    return TestClient(app, client=(CLIENT_IP_ADDRESS, CLIENT_IP_PORT), headers={"User-Agent": USER_AGENT})
 
 
 class FailedToCreateNode(RuntimeError):
@@ -134,6 +140,13 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     certs = x509.load_pem_x509_certificates(enrollment_response["x509_certificate"].encode())
     certificate_serial_number_1 = certs[0].serial_number
 
+    node_document = TapirNode.objects(name=name).first()
+    assert node_document is not None
+    assert node_document.name == name
+    assert node_document.request_metadata.user_agent == USER_AGENT
+    assert node_document.request_metadata.ip_address == CLIENT_IP_ADDRESS
+    assert node_document.request_metadata.port == CLIENT_IP_PORT
+
     ##########################################
     # Enroll created node again (should fail)
 
@@ -175,6 +188,15 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert (
         node_certificate["x509_certificate_not_valid_after"] == enrollment_response["x509_certificate_not_valid_after"]
     )
+
+    node_certificate_document = TapirCertificate.objects(
+        serial=node_certificate["x509_certificate_serial_number"]
+    ).first()
+    assert node_certificate_document is not None
+    assert node_certificate_document.name == name
+    assert node_certificate_document.request_metadata.user_agent == USER_AGENT
+    assert node_certificate_document.request_metadata.ip_address == CLIENT_IP_ADDRESS
+    assert node_certificate_document.request_metadata.port == CLIENT_IP_PORT
 
     #####################
     # Get node public key

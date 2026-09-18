@@ -19,7 +19,7 @@ from pydantic_core import ValidationError
 from dnstapir.key_resolver import KEY_ID_VALIDATOR
 
 from .authn import get_current_username
-from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment
+from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment, TapirRequestMetadata
 from .jose import Base64UrlString, PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_PATTERN,
@@ -140,7 +140,9 @@ def process_csr_request(
     x509_certificate_serial_number = x509_certificate.serial_number
     x509_not_valid_after_utc = x509_certificate.not_valid_after_utc.isoformat()
 
-    TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate).save()
+    cert = TapirCertificate.from_x509_certificate(name=name, x509_certificate=x509_certificate)
+    cert.request_metadata = TapirRequestMetadata.from_request(request)
+    cert.save()
 
     logger.info(
         "Issued certificate for name=%s serial=%s not_valid_after=%s",
@@ -503,6 +505,7 @@ async def enroll_node(
         )
 
     node.activated = datetime.now(tz=UTC)
+    node.request_metadata = TapirRequestMetadata.from_request(request)
     node.save()
     node_enrollment.delete()
 
