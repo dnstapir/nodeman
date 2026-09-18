@@ -56,13 +56,9 @@ node_configurations_requested = meter.create_counter(
 router = APIRouter()
 
 
-def http_expires(dt: datetime) -> str:
-    return email.utils.format_datetime(dt, usegmt=True)
-
-
-def get_cache_headers(request: Request, ttl: int, public: bool = True) -> dict[str, str]:
+def get_cache_headers(ttl: int, public: bool = True) -> dict[str, str]:
     return {
-        "Expires": http_expires(datetime.now(tz=UTC) + timedelta(seconds=ttl)),
+        "Expires": email.utils.format_datetime(datetime.now(tz=UTC) + timedelta(seconds=ttl), usegmt=True),
         "Cache-Control": f"public, max-age={ttl}" if public else "no-store",
     }
 
@@ -388,7 +384,7 @@ async def get_node_public_key(
     nodes_public_key_queries.add(1, {"media_type": str(media_type)})
 
     headers = {
-        **get_cache_headers(request, ttl=request.app.settings.nodes.node_public_key_ttl),
+        **get_cache_headers(ttl=request.app.settings.nodes.node_public_key_ttl),
         "Vary": "Accept",
     }
 
@@ -438,7 +434,6 @@ def delete_node(
 async def enroll_node(
     name: Annotated[str, Depends(get_node_name)],
     request: Request,
-    response: Response,
 ) -> NodeEnrollmentResult:
     """Enroll new node"""
 
@@ -627,7 +622,7 @@ async def get_node_configuration(
 
     node_configurations_requested.add(1)
 
-    headers = get_cache_headers(request, ttl=request.app.settings.nodes.configuration_ttl)
+    headers = get_cache_headers(ttl=request.app.settings.nodes.configuration_ttl)
     response.headers.update(headers)
 
     return res
