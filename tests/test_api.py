@@ -183,6 +183,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     response = client.get(public_key_url, headers={"Accept": "application/json"})
     assert response.status_code == status.HTTP_200_OK
+    assert response.headers.get("Vary") == "Accept"
     res = JWK.from_json(response.text)
     assert res.kid == name
 
@@ -551,6 +552,7 @@ def test_tags_filter() -> None:
     res = JWK.from_json(response.text)
     assert res.kid == node_name
     assert response.json().get("tags") == sorted(node_tags[node_name])
+    assert "expires" in response.headers
 
     # Find public key with tag
     node_name = f"node1.{domain}"
