@@ -527,9 +527,6 @@ async def enroll_node(
 
     nodes_enrolled.add(1)
 
-    headers = get_cache_headers(request, ttl=request.app.settings.nodes.configuration_ttl)
-    response.headers.update(headers)
-
     return NodeEnrollmentResult(
         **create_node_configuration(name=name, request=request).model_dump(),
         x509_certificate=node_certificate.x509_certificate,
