@@ -189,7 +189,9 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
         node_certificate["x509_certificate_not_valid_after"] == enrollment_response["x509_certificate_not_valid_after"]
     )
 
-    node_certificate_document = TapirCertificate.objects(name=name).first()
+    node_certificate_document = TapirCertificate.objects(
+        serial=node_certificate["x509_certificate_serial_number"]
+    ).first()
     assert node_certificate_document is not None
     assert node_certificate_document.name == name
     assert node_certificate_document.request_metadata.user_agent == USER_AGENT
