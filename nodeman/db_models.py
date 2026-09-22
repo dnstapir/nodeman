@@ -54,10 +54,17 @@ class TapirNode(Document):
 
 
 class TapirNodeEnrollment(Document):
-    meta = {"collection": "enrollments"}
+    meta = {
+        "collection": "enrollments",
+        "indexes": [
+            {"fields": ["expire"], "expireAfterSeconds": 0},
+        ],
+    }
 
     name = StringField(unique=True)
     key = DictField()
+
+    expire = DateTimeField()
 
 
 class TapirCertificate(Document):

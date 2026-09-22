@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin
@@ -19,11 +20,12 @@ from fastapi.testclient import TestClient
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
+from nodeman.db_models import TapirNodeEnrollment
 from nodeman.internal_ca import InternalCertificateAuthority
 from nodeman.jose import generate_similar_jwk, jwk_to_alg
 from nodeman.models import NodeCollection, PublicKeyFormat
 from nodeman.server import NodemanServer
-from nodeman.settings import Settings
+from nodeman.settings import EnrollmentSettings, Settings
 from nodeman.x509 import RSA_EXPONENT, CertificateAuthorityClient, generate_ca_certificate, generate_x509_csr
 
 ADMIN_TEST_NODE_COUNT = 100
@@ -84,6 +86,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     if response.status_code != status.HTTP_201_CREATED:
         raise FailedToCreateNode
     assert response.status_code == status.HTTP_201_CREATED
+    assert "Expires" not in response.headers
     create_response = response.json()
     name = create_response["name"]
     nodeman_url = create_response["nodeman_url"]
@@ -850,3 +853,75 @@ def test_enroll_node_name_reuse_before_delete() -> None:
 
     response = admin_client.post(urljoin(server, "/api/v1/node"), json=node_create_request)
     assert response.status_code == status.HTTP_409_CONFLICT
+
+
+def test_enroll_expire() -> None:
+
+    settings = Settings()
+    settings.enrollment = EnrollmentSettings(ttl=1)
+
+    app = NodemanServer(settings)
+    app.ca_client = get_ca_client()
+    app.connect_mongodb()
+
+    client = TestClient(app, client=("127.0.0.2", 4242))
+
+    admin_client = TestClient(app, client=("127.0.0.2", 4242))
+    admin_client.auth = BACKEND_CREDENTIALS
+
+    server = ""
+
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("Testing enrollment")
+
+    data_key = JWK.generate(kty="EC", crv="P-256")
+    x509_key = ec.generate_private_key(ec.SECP256R1())
+
+    #############
+    # Create node
+
+    response = admin_client.post(urljoin(server, "/api/v1/node"))
+    if response.status_code != status.HTTP_201_CREATED:
+        raise FailedToCreateNode
+    assert response.status_code == status.HTTP_201_CREATED
+    assert "Expires" in response.headers
+
+    create_response = response.json()
+    name = create_response["name"]
+
+    node_url = response.headers["Location"]
+
+    #####################
+    # Ensure expire
+
+    expire_doc = TapirNodeEnrollment.objects(name=name).first()
+    assert expire_doc is not None
+    assert expire_doc.expire is not None
+
+    # Wait for the node enrollment to expire
+    time.sleep(2)
+
+    #####################
+    # Enroll created node
+
+    enrollment_key = JWK(**create_response["key"])
+
+    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+
+    x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
+
+    payload = {
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+        "x509_csr": x509_csr,
+        "public_key": data_key.export_public(as_dict=True),
+    }
+
+    jws = JWS(payload=json.dumps(payload))
+    jws.add_signature(key=enrollment_key, alg=enrollment_key.alg, protected={"alg": enrollment_key.alg})
+    jws.add_signature(key=data_key, alg=data_alg, protected={"alg": data_alg})
+    enrollment_request = json.loads(jws.serialize())
+
+    node_enroll_url = f"{node_url}/enroll"
+
+    response = client.post(node_enroll_url, json=enrollment_request)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST

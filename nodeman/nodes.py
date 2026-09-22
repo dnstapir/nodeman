@@ -227,10 +227,17 @@ async def create_node(
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
+    expire = (
+        datetime.now(UTC) + timedelta(seconds=request.app.settings.enrollment.ttl)
+        if request.app.settings.enrollment.ttl is not None
+        else None
+    )
+
     TapirNodeEnrollment(
         id=node_enrollment_id,
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=node_enrollment_key.kty == "oct"),
+        expire=expire,
     ).save()
 
     nodes_created.add(1, {"creator": username})
@@ -243,7 +250,10 @@ async def create_node(
         extra={"username": username, "nodename": node.name, "tags": tags},
     )
 
-    headers = {"Location": f"/api/v1/node/{node.name}"}
+    headers = {
+        "Location": f"/api/v1/node/{node.name}",
+        **({"Expires": email.utils.format_datetime(expire, usegmt=True)} if expire else {}),
+    }
 
     res = NodeBootstrapInformation(
         name=node.name,
