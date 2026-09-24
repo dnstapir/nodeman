@@ -228,7 +228,7 @@ async def create_node(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
     expire = (
-        datetime.now(UTC) + timedelta(seconds=request.app.settings.enrollment.ttl)
+        datetime.now(tz=UTC) + timedelta(seconds=request.app.settings.enrollment.ttl)
         if request.app.settings.enrollment.ttl is not None
         else None
     )
