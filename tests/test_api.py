@@ -90,6 +90,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     create_response = response.json()
     name = create_response["name"]
     nodeman_url = create_response["nodeman_url"]
+    assert create_response["expire"] is None
     logging.info("Got name=%s", name)
     if requested_name:
         assert name == requested_name
@@ -888,6 +889,7 @@ def test_enroll_expire() -> None:
 
     create_response = response.json()
     name = create_response["name"]
+    assert create_response["expire"] is not None
 
     node_url = response.headers["Location"]
 

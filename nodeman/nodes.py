@@ -259,6 +259,7 @@ async def create_node(
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=True),
         nodeman_url=request.app.settings.nodes.nodeman_url,
+        expire=expire,
     )
 
     return JSONResponse(content=res.model_dump(mode="json"), status_code=status.HTTP_201_CREATED, headers=headers)
