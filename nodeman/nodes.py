@@ -462,6 +462,10 @@ async def enroll_node(
         logging.info("Node %s enrollment failed", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment failed")
 
+    if node_enrollment.expire and node_enrollment.expire < datetime.now(tz=UTC):
+        logging.info("Node %s enrollment expired", name, extra={"nodename": name})
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment expired")
+
     enrollment_key = JWK(**node_enrollment.key)
 
     body = await request.body()
