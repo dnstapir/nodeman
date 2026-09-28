@@ -250,10 +250,7 @@ async def create_node(
         extra={"username": username, "nodename": node.name, "tags": tags},
     )
 
-    headers = {
-        "Location": f"/api/v1/node/{node.name}",
-        **({"Expires": email.utils.format_datetime(expire, usegmt=True)} if expire else {}),
-    }
+    headers = {"Location": f"/api/v1/node/{node.name}"}
 
     res = NodeBootstrapInformation(
         name=node.name,

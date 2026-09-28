@@ -891,7 +891,6 @@ def test_enroll_expire() -> None:
     if response.status_code != status.HTTP_201_CREATED:
         raise FailedToCreateNode
     assert response.status_code == status.HTTP_201_CREATED
-    assert "Expires" in response.headers
 
     create_response = response.json()
     name = create_response["name"]
