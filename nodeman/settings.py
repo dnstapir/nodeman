@@ -125,6 +125,7 @@ class EnrollmentSettings(BaseModel):
     alg: str = Field(default="HS256")
     crv: str | None = Field(default=None)
     size: int | None = Field(default=None)
+    ttl: int | None = Field(default=None, gt=0, le=31536000)  # TTL in seconds, max 1 year
 
     @model_validator(mode="after")
     def validate_jwk_parameters(self) -> Self:

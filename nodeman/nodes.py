@@ -229,10 +229,17 @@ async def create_node(
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
 
+    expire = (
+        datetime.now(tz=UTC) + timedelta(seconds=request.app.settings.enrollment.ttl)
+        if request.app.settings.enrollment.ttl is not None
+        else None
+    )
+
     TapirNodeEnrollment(
         id=node_enrollment_id,
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=node_enrollment_key.kty == "oct"),
+        expire=expire,
     ).save()
 
     nodes_created.add(1, {"creator": username})
@@ -251,6 +258,7 @@ async def create_node(
         name=node.name,
         key=node_enrollment_key.export(as_dict=True, private_key=True),
         nodeman_url=request.app.settings.nodes.nodeman_url,
+        expire=expire,
     )
 
     return JSONResponse(content=res.model_dump(mode="json"), status_code=status.HTTP_201_CREATED, headers=headers)
@@ -456,6 +464,10 @@ async def enroll_node(
     if node_enrollment is None:
         logging.info("Node %s enrollment failed", name, extra={"nodename": name})
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment failed")
+
+    if node_enrollment.expire and node_enrollment.expire < datetime.now(tz=UTC):
+        logging.info("Node %s enrollment expired", name, extra={"nodename": name})
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment expired")
 
     enrollment_key = JWK(**node_enrollment.key)
 

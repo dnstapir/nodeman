@@ -98,6 +98,7 @@ class NodeBootstrapInformation(BaseModel):
     name: str = Field(title="Node name")
     key: PrivateSymmetric | PrivateJwk = Field(title="Enrollment JWK")
     nodeman_url: AnyHttpUrl | None = Field(title="Nodeman base URL", default=None)
+    expire: datetime | None = Field(title="Enrollment key expire (optional)", default=None)
 
 
 class NodeCertificate(BaseModel):
