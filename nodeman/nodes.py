@@ -56,10 +56,10 @@ node_configurations_requested = meter.create_counter(
 router = APIRouter()
 
 
-def get_cache_headers(ttl: int, public: bool = True) -> dict[str, str]:
+def get_cache_headers(ttl: int) -> dict[str, str]:
     return {
         "Expires": email.utils.format_datetime(datetime.now(tz=UTC) + timedelta(seconds=ttl), usegmt=True),
-        "Cache-Control": f"public, max-age={ttl}" if public else "no-store",
+        "Cache-Control": f"public, max-age={ttl}",
     }
 
 
@@ -376,6 +376,9 @@ async def get_node_public_key(
             node = find_legacy_node(name, request.app.settings.legacy_nodes_directory)
         else:
             raise exc
+
+    if not node.public_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
 
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
