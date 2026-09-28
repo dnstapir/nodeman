@@ -34,10 +34,11 @@ class TapirRequestMetadata(EmbeddedDocument):
 
     @classmethod
     def from_request(cls, request: Request) -> Self:
+        client = request.client
         return cls(
             user_agent=(request.headers.get("user-agent") or "")[:1024] or None,
-            ip_address=request.client.host if hasattr(request, "client") and request.client else None,
-            port=request.client.port if hasattr(request, "client") and request.client else None,
+            ip_address=client.host if client else None,
+            port=(client.port or None) if client else None,
         )
 
 

@@ -1,7 +1,7 @@
 import random
 import string
 
-from requests import Request
+from starlette.requests import Request
 
 from nodeman.db_models import TapirRequestMetadata
 
@@ -11,11 +11,7 @@ USER_AGENT = "pytest/0.0"
 def test_request_metadata_ok():
     """Test that a valid user-agent is correctly parsed."""
 
-    request = Request(
-        method="GET",
-        url="http://example.com",
-        headers={"user-agent": USER_AGENT},
-    )
+    request = Request({"type": "http", "headers": [(b"user-agent", USER_AGENT.encode())], "client": None})
 
     trm = TapirRequestMetadata.from_request(request)
     assert trm is not None
@@ -27,10 +23,7 @@ def test_request_metadata_ok():
 def test_request_metadata_missing_user_agent():
     """Test that a missing user-agent results in None."""
 
-    request = Request(
-        method="GET",
-        url="http://example.com",
-    )
+    request = Request({"type": "http", "headers": [], "client": None})
 
     trm = TapirRequestMetadata.from_request(request)
     assert trm is not None
@@ -44,11 +37,7 @@ def test_request_metadata_truncated_user_agent():
 
     user_agent = random.choice(string.ascii_letters) * 2048
 
-    request = Request(
-        method="GET",
-        url="http://example.com",
-        headers={"user-agent": user_agent},
-    )
+    request = Request({"type": "http", "headers": [(b"user-agent", user_agent.encode())], "client": None})
 
     trm = TapirRequestMetadata.from_request(request)
     assert trm is not None
