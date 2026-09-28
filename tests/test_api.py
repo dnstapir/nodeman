@@ -105,6 +105,12 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
     assert "test" in node_information["tags"]
 
     #####################
+    # Get node public key
+
+    response = client.get(f"{node_url}/public_key")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    #####################
     # Enroll created node
 
     enrollment_key = JWK(**create_response["key"])

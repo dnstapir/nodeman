@@ -366,6 +366,9 @@ async def get_node_public_key(
         else:
             raise exc
 
+    if not node.public_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
 
