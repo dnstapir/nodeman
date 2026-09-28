@@ -56,10 +56,10 @@ node_configurations_requested = meter.create_counter(
 router = APIRouter()
 
 
-def get_cache_headers(ttl: int, public: bool = True) -> dict[str, str]:
+def get_cache_headers(ttl: int) -> dict[str, str]:
     return {
         "Expires": email.utils.format_datetime(datetime.now(tz=UTC) + timedelta(seconds=ttl), usegmt=True),
-        "Cache-Control": f"public, max-age={ttl}" if public else "no-store",
+        "Cache-Control": f"public, max-age={ttl}",
     }
 
 
