@@ -704,15 +704,15 @@ wheels = [
 
 [[package]]
 name = "jwcrypto"
-version = "1.5.8"
+version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/de/7e/53c14813521693e931e420d9db00efe317419ff194495903bce03402275e/jwcrypto-1.5.8.tar.gz", hash = "sha256:c3d7114b6f6e65b52f6b7da817eb8cb8423e1da31e1ef13508447c81ecbdcc34", size = 90772, upload-time = "2026-06-24T19:36:50.782Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/8f/e802d77957903483129813ce6fa01a72a906f9cdd454039d1ec1e6d1e44a/jwcrypto-1.6.1.tar.gz", hash = "sha256:a1e1570da5c2e35dbcd375ec1d2891a24de8eb35ee2c1fe8e91978efb72cfe90", size = 116287, upload-time = "2026-09-15T21:22:33.286Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/7c/f87c5db042c4f7b4476346fc0d22f1025a777fee08eebde3720d3b9c4eb5/jwcrypto-1.5.8-py3-none-any.whl", hash = "sha256:85aeb475f808d56bbc2f2ed1f6f73e6a317c4011a4321505f02f0aed695a3742", size = 96133, upload-time = "2026-06-24T19:36:49.519Z" },
+    { url = "https://files.pythonhosted.org/packages/31/a4/ee780473e42a3edaf65da1ad37f5c601a9c740e215c1e09db36bf90f3f59/jwcrypto-1.6.1-py3-none-any.whl", hash = "sha256:77e856818e514cb3d64a1043b6885a7d52f5cc37773f5e944de02103c8d3a54f", size = 121267, upload-time = "2026-09-15T21:22:32.27Z" },
 ]
 
 [[package]]
@@ -752,6 +752,7 @@ name = "nodeman"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
+    { name = "cryptography" },
     { name = "dnstapir", extra = ["keymanager", "opentelemetry"] },
     { name = "fastapi" },
     { name = "httpx2", extra = ["http2"] },
@@ -778,10 +779,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
+    { name = "cryptography", specifier = ">=50.0.0" },
     { name = "dnstapir", extras = ["keymanager", "opentelemetry"], git = "https://github.com/dnstapir/python-dnstapir.git?tag=v1.5.1" },
     { name = "fastapi", specifier = ">=0.137.1" },
     { name = "httpx2", extras = ["http2"], specifier = ">=2.12.0" },
-    { name = "jwcrypto", specifier = ">=1.5.7" },
+    { name = "jwcrypto", specifier = ">=1.6.1" },
     { name = "mongoengine", specifier = ">=0.29.3" },
     { name = "namesgenerator", specifier = ">=0.3" },
     { name = "pydantic", specifier = ">=2.13.4" },

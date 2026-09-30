@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.x509.oid import NameOID
 from fastapi import status
@@ -37,7 +38,15 @@ USER_AGENT = "pytest/0.0"
 CLIENT_IP_ADDRESS = "127.0.0.1"
 CLIENT_IP_PORT = 4242
 
-PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
+PrivateKey = (
+    ec.EllipticCurvePrivateKey
+    | rsa.RSAPublicKey
+    | Ed25519PrivateKey
+    | Ed448PrivateKey
+    | MLDSA44PrivateKey
+    | MLDSA65PrivateKey
+    | MLDSA87PrivateKey
+)
 
 # Set test configuration file - note that environment variables with NODEMAN_ prefix
 # will take precedence over values in this file
@@ -358,6 +367,30 @@ def test_enroll_ed25519() -> None:
 def test_enroll_ed448() -> None:
     data_key = JWK.generate(kty="OKP", crv="Ed448")
     x509_key = Ed448PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa44() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-44")
+    x509_key = MLDSA44PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa65() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-65")
+    x509_key = MLDSA65PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa87() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-87")
+    x509_key = MLDSA87PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa44_ed25519() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-44")
+    x509_key = Ed25519PrivateKey.generate()
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 

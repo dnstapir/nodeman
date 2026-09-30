@@ -152,6 +152,10 @@ class EnrollmentSettings(BaseModel):
                 if self.size:
                     raise ValueError(f"size not supported for {self.kty}")
                 return {"kty": self.kty, "alg": self.alg, "crv": self.crv}
+            case "AKP":
+                if self.alg is None:
+                    raise ValueError("Algorithm required")
+                return {"kty": self.kty, "alg": self.alg}
             case _:
                 raise ValueError("Unsupported key type")
 

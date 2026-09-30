@@ -55,6 +55,18 @@ class PrivateOKP(PublicOKP):
     d: Base64UrlString
 
 
+class PublicAKP(BaseJWK):
+    """JWK: Public AKP key"""
+
+    kty: Annotated[str, StringConstraints(pattern=r"^AKP$")]
+    alg: Annotated[str, StringConstraints(pattern=r"^ML-DSA-(44|65|87)$")]
+    pub: Base64UrlString
+
+
+class PrivateAKP(PublicAKP):
+    priv: Base64UrlString
+
+
 class PrivateSymmetric(BaseJWK):
     """JWK: Private symmetric key"""
 
@@ -62,8 +74,8 @@ class PrivateSymmetric(BaseJWK):
     k: Base64UrlString
 
 
-PublicJwk = PublicRSA | PublicEC | PublicOKP
-PrivateJwk = PrivateRSA | PrivateEC | PrivateOKP
+PublicJwk = PublicRSA | PublicEC | PublicOKP | PublicAKP
+PrivateJwk = PrivateRSA | PrivateEC | PrivateOKP | PrivateAKP
 
 
 class PublicJwks(BaseModel):
@@ -78,12 +90,19 @@ def public_key_factory(jwk_dict: dict[str, str]) -> PublicJwk:
             return PublicEC(**jwk_dict)
         case "OKP":
             return PublicOKP(**jwk_dict)
+        case "AKP":
+            return PublicAKP(**jwk_dict)
         case _:
             raise ValueError("Unsupported key type")
 
 
 def jwk_to_alg(key: JWK) -> str:
+    """Return the algorithm for the given JWK."""
+    if alg := key.get("alg"):
+        return alg
     kty = str(key.kty)
+    if kty == "AKP":
+        raise ValueError("Algorithm must be specified for AKP keys")
     crv = key.get("crv")
     match (kty, crv):
         case ("RSA", None):
@@ -102,7 +121,7 @@ def jwk_to_alg(key: JWK) -> str:
 def generate_similar_jwk(key: JWK) -> JWK:
     """Generate similar JWK"""
 
-    params = {param: key.get(param) for param in ["kty", "crv"] if param in key}
+    params = {param: key.get(param) for param in ["kty", "crv", "alg"] if param in key}
     match key.get("kty"):
         case "RSA":
             params["size"] = key._get_public_key().key_size

@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
@@ -138,18 +139,24 @@ def get_httpx2_admin_client(args: argparse.Namespace) -> httpx2.Client:
     return httpx2.Client(auth=auth, headers={"User-Agent": USER_AGENT}, http2=True)
 
 
-def generate_x509_key(kty: str, crv: str) -> PrivateKey:
-    match (kty, crv):
-        case ("RSA", _):
+def generate_x509_key(kty: str, crv: str | None = None, alg: str | None = None) -> PrivateKey:
+    match (kty, crv, alg):
+        case ("RSA", _, _):
             raise ValueError("RSA not supported")
-        case ("EC", "P-256"):
+        case ("EC", "P-256", _):
             return ec.generate_private_key(ec.SECP256R1())
-        case ("EC", "P-384"):
+        case ("EC", "P-384", _):
             return ec.generate_private_key(ec.SECP384R1())
-        case ("OKP", "Ed25519"):
+        case ("OKP", "Ed25519", _):
             return Ed25519PrivateKey.generate()
-        case ("OKP", "Ed448"):
+        case ("OKP", "Ed448", _):
             return Ed448PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-44"):
+            return MLDSA44PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-65"):
+            return MLDSA65PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-87"):
+            return MLDSA87PrivateKey.generate()
         case _:
             raise ValueError("Unsupported key type")
 
@@ -276,9 +283,18 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
         logging.error("Node name not set")
         raise SystemExit(1)
 
-    data_key = JWK.generate(kty=args.kty, crv=args.crv, kid=name)
+    if args.kty in ["OKP", "EC"] and not args.crv:
+        logging.error("Curve must be specified for OKP and EC keys")
+        raise SystemExit(1)
+
+    if args.kty == "AKP" and not args.alg:
+        logging.error("Algorithm must be specified for AKP keys")
+        raise SystemExit(1)
+
+    crv_kwargs = {"crv": args.crv} if args.kty in ["OKP", "EC"] else {}
+    data_key = JWK.generate(kty=args.kty, alg=args.alg, kid=name, **crv_kwargs)
     data_key["alg"] = jwk_to_alg(data_key)
-    x509_key = generate_x509_key(kty=args.kty, crv=args.crv)
+    x509_key = generate_x509_key(kty=args.kty, alg=args.alg, **crv_kwargs)
 
     result = enroll(
         name=name,
@@ -305,7 +321,8 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
     with open(args.data_jwk_file) as fp:
         data_key = JWK.from_json(fp.read())
 
-    x509_key = generate_x509_key(kty=data_key.kty, crv=data_key.crv)
+    crv_kwargs = {"crv": data_key.crv} if data_key.kty in ["OKP", "EC"] else {}
+    x509_key = generate_x509_key(kty=data_key.kty, alg=data_key.alg, **crv_kwargs)
 
     server = args.server or data_key.get("iss") or DEFAULT_SERVER
 
@@ -417,6 +434,7 @@ def main() -> None:
     enroll_parser.add_argument("--name", metavar="name", help="Node name")
     enroll_parser.add_argument("--kty", metavar="type", help="Key type", default="OKP")
     enroll_parser.add_argument("--crv", metavar="type", help="Key curve", default="Ed25519")
+    enroll_parser.add_argument("--alg", metavar="alg", help="Key algorithm", default=None)
 
     renew_parser = subparsers.add_parser("renew", help="Renew existing certificate")
     renew_parser.set_defaults(func=command_renew)

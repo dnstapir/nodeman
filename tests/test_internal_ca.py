@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from cryptography.x509.oid import NameOID
 
 from nodeman.internal_ca import InternalCertificateAuthority
@@ -156,4 +157,19 @@ def test_internal_ca_ed25519() -> None:
 
 def test_internal_ca_ed448() -> None:
     ca_private_key = Ed448PrivateKey.generate()
+    return _test_internal_ca(ca_private_key, verify=False)
+
+
+def test_internal_ca_mldsa44() -> None:
+    ca_private_key = MLDSA44PrivateKey.generate()
+    return _test_internal_ca(ca_private_key, verify=False)
+
+
+def test_internal_ca_mldsa65() -> None:
+    ca_private_key = MLDSA65PrivateKey.generate()
+    return _test_internal_ca(ca_private_key, verify=False)
+
+
+def test_internal_ca_mldsa87() -> None:
+    ca_private_key = MLDSA87PrivateKey.generate()
     return _test_internal_ca(ca_private_key, verify=False)

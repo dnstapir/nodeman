@@ -10,12 +10,22 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.x509.extensions import ExtensionNotFound
 from cryptography.x509.oid import ExtensionOID, NameOID, ObjectIdentifier
 
 RSA_EXPONENT = 65537
-type PrivateKey = RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
+
+type PrivateKey = (
+    RSAPrivateKey
+    | EllipticCurvePrivateKey
+    | Ed25519PrivateKey
+    | Ed448PrivateKey
+    | MLDSA44PrivateKey
+    | MLDSA65PrivateKey
+    | MLDSA87PrivateKey
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +57,9 @@ def get_hash_algorithm_from_key(key: PrivateKey) -> hashes.HashAlgorithm | None:
         return hashes.SHA256()
     elif isinstance(key, EllipticCurvePrivateKey):
         return hashes.SHA384() if isinstance(key.curve, ec.SECP384R1) else hashes.SHA256()
-    elif isinstance(key, Ed25519PrivateKey | Ed448PrivateKey):
+    elif isinstance(
+        key, Ed25519PrivateKey | Ed448PrivateKey | MLDSA44PrivateKey | MLDSA65PrivateKey | MLDSA87PrivateKey
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         return None
     else:
         raise ValueError("Unsupported private key type")
@@ -77,6 +89,12 @@ def generate_similar_key(key: PrivateKey) -> PrivateKey:
         return Ed25519PrivateKey.generate()
     elif isinstance(key, Ed448PrivateKey):
         return Ed448PrivateKey.generate()
+    elif isinstance(key, MLDSA44PrivateKey):
+        return MLDSA44PrivateKey.generate()
+    elif isinstance(key, MLDSA65PrivateKey):
+        return MLDSA65PrivateKey.generate()
+    elif isinstance(key, MLDSA87PrivateKey):
+        return MLDSA87PrivateKey.generate()
     else:
         raise ValueError("Unsupported algorithm")
 
