@@ -215,3 +215,27 @@ def generate_ca_certificate(
         private_key=private_key,
         algorithm=get_hash_algorithm_from_key(private_key),
     )
+
+
+def generate_x509_key(kty: str, crv: str | None = None, alg: str | None = None) -> PrivateKey:
+    """Generate X.509 private key based on key type, curve, and algorithm"""
+
+    match (kty, crv, alg):
+        case ("RSA", _, _):
+            raise ValueError("RSA not supported")
+        case ("EC", "P-256", _):
+            return ec.generate_private_key(ec.SECP256R1())
+        case ("EC", "P-384", _):
+            return ec.generate_private_key(ec.SECP384R1())
+        case ("OKP", "Ed25519", _):
+            return Ed25519PrivateKey.generate()
+        case ("OKP", "Ed448", _):
+            return Ed448PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-44"):
+            return MLDSA44PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-65"):
+            return MLDSA65PrivateKey.generate()
+        case ("AKP", _, "ML-DSA-87"):
+            return MLDSA87PrivateKey.generate()
+        case _:
+            raise ValueError("Unsupported key type")

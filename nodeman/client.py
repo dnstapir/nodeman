@@ -8,16 +8,12 @@ from urllib.parse import urljoin
 
 import httpx2
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from jwcrypto.jwk import JWK
 from jwcrypto.jws import JWS
 
 from nodeman.jose import jwk_to_alg
 from nodeman.models import NodeBootstrapInformation, NodeCertificate, NodeConfiguration, NodeEnrollmentResult
-from nodeman.x509 import PrivateKey, generate_x509_csr
+from nodeman.x509 import PrivateKey, generate_x509_csr, generate_x509_key
 
 from . import __version__
 
@@ -137,28 +133,6 @@ def get_httpx2_admin_client(args: argparse.Namespace) -> httpx2.Client:
     auth = (username, password)
 
     return httpx2.Client(auth=auth, headers={"User-Agent": USER_AGENT}, http2=True)
-
-
-def generate_x509_key(kty: str, crv: str | None = None, alg: str | None = None) -> PrivateKey:
-    match (kty, crv, alg):
-        case ("RSA", _, _):
-            raise ValueError("RSA not supported")
-        case ("EC", "P-256", _):
-            return ec.generate_private_key(ec.SECP256R1())
-        case ("EC", "P-384", _):
-            return ec.generate_private_key(ec.SECP384R1())
-        case ("OKP", "Ed25519", _):
-            return Ed25519PrivateKey.generate()
-        case ("OKP", "Ed448", _):
-            return Ed448PrivateKey.generate()
-        case ("AKP", _, "ML-DSA-44"):
-            return MLDSA44PrivateKey.generate()
-        case ("AKP", _, "ML-DSA-65"):
-            return MLDSA65PrivateKey.generate()
-        case ("AKP", _, "ML-DSA-87"):
-            return MLDSA87PrivateKey.generate()
-        case _:
-            raise ValueError("Unsupported key type")
 
 
 def command_create(args: argparse.Namespace) -> NodeBootstrapInformation:
