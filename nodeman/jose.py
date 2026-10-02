@@ -115,7 +115,8 @@ def jwk_to_alg(key: JWK) -> str:
             return "EdDSA"
         case ("OKP", "Ed448"):
             return "EdDSA"
-    raise ValueError(f"Unsupported key type: {kty}" + (f" with curve: {crv}" if crv else ""))
+        case _:
+            raise ValueError(f"Unsupported key type: {kty}" + (f" with curve: {crv}" if crv else ""))
 
 
 def generate_similar_jwk(key: JWK) -> JWK:

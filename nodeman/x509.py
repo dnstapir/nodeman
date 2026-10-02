@@ -238,6 +238,4 @@ def generate_x509_key(kty: str, crv: str | None = None, alg: str | None = None) 
         case ("AKP", _, "ML-DSA-87"):
             return MLDSA87PrivateKey.generate()
         case _:
-            pass
-
-    raise ValueError("Unsupported key type")
+            raise ValueError("Unsupported key type")
