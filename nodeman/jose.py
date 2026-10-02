@@ -98,10 +98,10 @@ def public_key_factory(jwk_dict: dict[str, str]) -> PublicJwk:
 
 def jwk_to_alg(key: JWK) -> str:
     """Return the algorithm for the given JWK."""
-    if alg := key.get("alg"):
-        return alg
     kty = str(key.kty)
     if kty == "AKP":
+        if alg := key.get("alg"):
+            return alg
         raise ValueError("Algorithm must be specified for AKP keys")
     crv = key.get("crv")
     match (kty, crv):

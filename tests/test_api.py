@@ -133,7 +133,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     enrollment_key = JWK(**create_response["key"])
 
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
@@ -442,7 +442,7 @@ def test_enroll_bad_hmac_signature() -> None:
     assert hmac_alg == "HS256"
 
     data_key = JWK.generate(kty=kty, crv=crv)
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -588,7 +588,7 @@ def test_tags_filter() -> None:
 
         create_response = response.json()
         enrollment_key = JWK(**create_response["key"])
-        data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+        data_alg = data_key.get("alg", jwk_to_alg(data_key))
         x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
         enroll_payload = {
@@ -680,7 +680,7 @@ def test_thumbprint_filter() -> None:
 
     create_response = response.json()
     enrollment_key = JWK(**create_response["key"])
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     enroll_payload = {
@@ -967,7 +967,7 @@ def test_enroll_expire() -> None:
 
     enrollment_key = JWK(**create_response["key"])
 
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
