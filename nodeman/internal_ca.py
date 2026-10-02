@@ -9,6 +9,14 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import (
+    MLDSA44PrivateKey,
+    MLDSA44PublicKey,
+    MLDSA65PrivateKey,
+    MLDSA65PublicKey,
+    MLDSA87PrivateKey,
+    MLDSA87PublicKey,
+)
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
@@ -25,25 +33,6 @@ from nodeman.x509 import (
 
 class InternalCertificateAuthority(CertificateAuthorityClient):
     """Internal CA"""
-
-    KEY_USAGE = x509.KeyUsage(
-        digital_signature=True,
-        content_commitment=False,
-        key_encipherment=True,
-        data_encipherment=False,
-        key_agreement=False,
-        key_cert_sign=False,
-        crl_sign=False,
-        encipher_only=False,
-        decipher_only=False,
-    )
-
-    EXTENDED_KEY_USAGE = x509.ExtendedKeyUsage(
-        usages=[
-            ExtendedKeyUsageOID.CLIENT_AUTH,
-            ExtendedKeyUsageOID.SERVER_AUTH,
-        ]
-    )
 
     def __init__(
         self,
@@ -91,7 +80,14 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         with open(issuer_ca_private_key_file, "rb") as fp:
             issuer_ca_private_key = load_pem_private_key(fp.read(), password=None)
         if not isinstance(
-            issuer_ca_private_key, RSAPrivateKey | EllipticCurvePrivateKey | Ed25519PrivateKey | Ed448PrivateKey
+            issuer_ca_private_key,
+            RSAPrivateKey
+            | EllipticCurvePrivateKey
+            | Ed25519PrivateKey
+            | Ed448PrivateKey
+            | MLDSA44PrivateKey
+            | MLDSA65PrivateKey
+            | MLDSA87PrivateKey,
         ):
             raise ValueError("Unsupported private key type")
 
@@ -149,6 +145,25 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         else:
             validity = self.default_validity
 
+        key_usage = x509.KeyUsage(
+            digital_signature=True,
+            content_commitment=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            key_encipherment=not isinstance(csr.public_key(), MLDSA44PublicKey | MLDSA65PublicKey | MLDSA87PublicKey),
+            data_encipherment=False,
+            key_agreement=False,
+            encipher_only=False,
+            decipher_only=False,
+        )
+
+        extended_key_usage = x509.ExtendedKeyUsage(
+            usages=[
+                ExtendedKeyUsageOID.CLIENT_AUTH,
+                ExtendedKeyUsageOID.SERVER_AUTH,
+            ]
+        )
+
         now = datetime.now(tz=UTC)
         not_valid_before = now - self.time_skew
         not_valid_after = now + validity
@@ -161,8 +176,8 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         builder = builder.serial_number(x509.random_serial_number())
         builder = builder.public_key(csr.public_key())
 
-        builder = builder.add_extension(self.KEY_USAGE, critical=True)
-        builder = builder.add_extension(self.EXTENDED_KEY_USAGE, critical=False)
+        builder = builder.add_extension(key_usage, critical=True)
+        builder = builder.add_extension(extended_key_usage, critical=False)
 
         builder = builder.add_extension(
             x509.SubjectKeyIdentifier.from_public_key(csr.public_key()),

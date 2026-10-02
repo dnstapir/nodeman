@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.x509.oid import NameOID
 from fastapi import status
@@ -37,7 +38,15 @@ USER_AGENT = "pytest/0.0"
 CLIENT_IP_ADDRESS = "127.0.0.1"
 CLIENT_IP_PORT = 4242
 
-PrivateKey = ec.EllipticCurvePrivateKey | rsa.RSAPublicKey | Ed25519PrivateKey | Ed448PrivateKey
+PrivateKey = (
+    ec.EllipticCurvePrivateKey
+    | rsa.RSAPublicKey
+    | Ed25519PrivateKey
+    | Ed448PrivateKey
+    | MLDSA44PrivateKey
+    | MLDSA65PrivateKey
+    | MLDSA87PrivateKey
+)
 
 # Set test configuration file - note that environment variables with NODEMAN_ prefix
 # will take precedence over values in this file
@@ -124,7 +133,7 @@ def _test_enroll(data_key: JWK, x509_key: PrivateKey, requested_name: str | None
 
     enrollment_key = JWK(**create_response["key"])
 
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
@@ -361,6 +370,30 @@ def test_enroll_ed448() -> None:
     _test_enroll(data_key=data_key, x509_key=x509_key)
 
 
+def test_enroll_mldsa44() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-44")
+    x509_key = MLDSA44PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa65() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-65")
+    x509_key = MLDSA65PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa87() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-87")
+    x509_key = MLDSA87PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
+def test_enroll_mldsa44_ed25519() -> None:
+    data_key = JWK.generate(kty="AKP", alg="ML-DSA-44")
+    x509_key = Ed25519PrivateKey.generate()
+    _test_enroll(data_key=data_key, x509_key=x509_key)
+
+
 def test_enroll_rsa() -> None:
     data_key = JWK.generate(kty="RSA", size=2048)
     x509_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
@@ -409,7 +442,7 @@ def test_enroll_bad_hmac_signature() -> None:
     assert hmac_alg == "HS256"
 
     data_key = JWK.generate(kty=kty, crv=crv)
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_key = ec.generate_private_key(ec.SECP256R1())
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
@@ -555,7 +588,7 @@ def test_tags_filter() -> None:
 
         create_response = response.json()
         enrollment_key = JWK(**create_response["key"])
-        data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+        data_alg = data_key.get("alg", jwk_to_alg(data_key))
         x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
         enroll_payload = {
@@ -647,7 +680,7 @@ def test_thumbprint_filter() -> None:
 
     create_response = response.json()
     enrollment_key = JWK(**create_response["key"])
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     enroll_payload = {
@@ -934,7 +967,7 @@ def test_enroll_expire() -> None:
 
     enrollment_key = JWK(**create_response["key"])
 
-    data_alg = data_key.get("alg") or jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
 
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 

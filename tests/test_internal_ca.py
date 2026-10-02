@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
 from cryptography.x509.oid import NameOID
 
 from nodeman.internal_ca import InternalCertificateAuthority
@@ -32,7 +33,7 @@ def _verify_certification_information(res: CertificateInformation) -> None:
     assert verified_client.subjects is not None
 
 
-def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
+def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> x509.Certificate:
     """Test Internal CA"""
 
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
@@ -71,6 +72,8 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> None:
 
     if verify:
         _verify_certification_information(res)
+
+    return certificate
 
 
 def test_internal_sub_ca() -> None:
@@ -136,24 +139,47 @@ def test_internal_ca_file() -> None:
 
 def test_internal_ca_rsa() -> None:
     ca_private_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
-    return _test_internal_ca(ca_private_key)
+    certificate = _test_internal_ca(ca_private_key)
+    assert isinstance(certificate, x509.Certificate)
+    assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is True
 
 
 def test_internal_ca_p256() -> None:
     ca_private_key = ec.generate_private_key(ec.SECP256R1())
-    return _test_internal_ca(ca_private_key)
+    _test_internal_ca(ca_private_key)
 
 
 def test_internal_ca_p384() -> None:
     ca_private_key = ec.generate_private_key(ec.SECP384R1())
-    return _test_internal_ca(ca_private_key)
+    _test_internal_ca(ca_private_key)
 
 
 def test_internal_ca_ed25519() -> None:
     ca_private_key = Ed25519PrivateKey.generate()
-    return _test_internal_ca(ca_private_key, verify=False)
+    _test_internal_ca(ca_private_key, verify=False)
 
 
 def test_internal_ca_ed448() -> None:
     ca_private_key = Ed448PrivateKey.generate()
-    return _test_internal_ca(ca_private_key, verify=False)
+    _test_internal_ca(ca_private_key, verify=False)
+
+
+def test_internal_ca_mldsa44() -> None:
+    ca_private_key = MLDSA44PrivateKey.generate()
+    certificate = _test_internal_ca(ca_private_key, verify=False)
+    assert isinstance(certificate, x509.Certificate)
+    assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False
+
+
+def test_internal_ca_mldsa65() -> None:
+    ca_private_key = MLDSA65PrivateKey.generate()
+    certificate = _test_internal_ca(ca_private_key, verify=False)
+    assert isinstance(certificate, x509.Certificate)
+    assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False
+
+
+def test_internal_ca_mldsa87() -> None:
+    ca_private_key = MLDSA87PrivateKey.generate()
+    certificate = _test_internal_ca(ca_private_key, verify=False)
+    assert isinstance(certificate, x509.Certificate)
+    assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False

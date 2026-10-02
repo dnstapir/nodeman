@@ -11,8 +11,6 @@ from nodeman.x509 import (
     verify_x509_csr_data,
 )
 
-type PrivateKey = ec.EllipticCurvePrivateKey
-
 NAME_1 = "host1.example.com"
 NAME_2 = "host2.example.com"
 

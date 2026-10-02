@@ -10,13 +10,14 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "fastapi>=0.137.1",
     "httpx2[http2]>=2.12.0",
-    "jwcrypto>=1.5.7",
+    "jwcrypto>=1.6.1",
     "mongoengine>=0.29.3",
     "namesgenerator>=0.3",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
     "uvicorn>=0.49.0",
     "pyyaml>=6.0.3",
+    "cryptography>=50.0.0",
 ]
 
 [tool.uv.sources]

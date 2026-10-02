@@ -147,11 +147,17 @@ class EnrollmentSettings(BaseModel):
                     raise ValueError(f"Cannot specify curve for {self.kty}")
                 return {"kty": self.kty, "alg": self.alg, "size": self.size or 2048}
             case "EC" | "OKP":
-                if self.crv is None:
-                    raise ValueError("Unknown curve")
+                if not self.crv:
+                    raise ValueError("Curve required")
                 if self.size:
-                    raise ValueError(f"size not supported for {self.kty}")
+                    raise ValueError(f"Size not supported for {self.kty}")
                 return {"kty": self.kty, "alg": self.alg, "crv": self.crv}
+            case "AKP":
+                if not self.alg:
+                    raise ValueError("Algorithm required")
+                if self.size:
+                    raise ValueError(f"Size not supported for {self.kty}")
+                return {"kty": self.kty, "alg": self.alg}
             case _:
                 raise ValueError("Unsupported key type")
 
