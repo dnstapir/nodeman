@@ -9,7 +9,14 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.asymmetric.mldsa import MLDSA44PrivateKey, MLDSA65PrivateKey, MLDSA87PrivateKey
+from cryptography.hazmat.primitives.asymmetric.mldsa import (
+    MLDSA44PrivateKey,
+    MLDSA44PublicKey,
+    MLDSA65PrivateKey,
+    MLDSA65PublicKey,
+    MLDSA87PrivateKey,
+    MLDSA87PublicKey,
+)
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
@@ -143,9 +150,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
             content_commitment=False,
             key_cert_sign=False,
             crl_sign=False,
-            key_encipherment=not isinstance(
-                csr.public_key(), MLDSA44PrivateKey | MLDSA65PrivateKey | MLDSA87PrivateKey
-            ),
+            key_encipherment=not isinstance(csr.public_key(), MLDSA44PublicKey | MLDSA65PublicKey | MLDSA87PublicKey),
             data_encipherment=False,
             key_agreement=False,
             encipher_only=False,
