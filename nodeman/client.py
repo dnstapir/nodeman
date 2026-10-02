@@ -27,7 +27,7 @@ def enroll(
     """Enroll new node"""
 
     enrollment_alg = enrollment_key.alg or jwk_to_alg(enrollment_key)
-    data_alg = jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     jws_payload = json.dumps(
@@ -64,7 +64,7 @@ def enroll(
 def renew(name: str, server: str, data_key: JWK, x509_key: PrivateKey, lifetime: int | None) -> NodeCertificate:
     """Renew existing node"""
 
-    data_alg = jwk_to_alg(data_key)
+    data_alg = data_key.get("alg", jwk_to_alg(data_key))
     x509_csr = generate_x509_csr(key=x509_key, name=name).public_bytes(serialization.Encoding.PEM).decode()
 
     jws_payload = json.dumps(
@@ -263,6 +263,10 @@ def command_enroll(args: argparse.Namespace) -> NodeConfiguration:
 
     if args.kty == "AKP" and not args.alg:
         logging.error("Algorithm must be specified for AKP keys")
+        raise SystemExit(1)
+
+    if args.kty != "AKP" and args.alg:
+        logging.error("Algorithm must not be specified for non-AKP keys")
         raise SystemExit(1)
 
     crv_kwargs = {"crv": args.crv} if args.kty in ["OKP", "EC"] else {}
