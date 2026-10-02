@@ -198,11 +198,11 @@ def generate_ca_certificate(
         x509.KeyUsage(
             digital_signature=True,
             content_commitment=False,
+            key_cert_sign=True,
+            crl_sign=True,
             key_encipherment=False,
             data_encipherment=False,
             key_agreement=False,
-            key_cert_sign=True,
-            crl_sign=True,
             encipher_only=False,
             decipher_only=False,
         ),

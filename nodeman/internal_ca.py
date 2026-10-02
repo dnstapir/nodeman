@@ -27,25 +27,6 @@ from nodeman.x509 import (
 class InternalCertificateAuthority(CertificateAuthorityClient):
     """Internal CA"""
 
-    KEY_USAGE = x509.KeyUsage(
-        digital_signature=True,
-        content_commitment=False,
-        key_encipherment=True,
-        data_encipherment=False,
-        key_agreement=False,
-        key_cert_sign=False,
-        crl_sign=False,
-        encipher_only=False,
-        decipher_only=False,
-    )
-
-    EXTENDED_KEY_USAGE = x509.ExtendedKeyUsage(
-        usages=[
-            ExtendedKeyUsageOID.CLIENT_AUTH,
-            ExtendedKeyUsageOID.SERVER_AUTH,
-        ]
-    )
-
     def __init__(
         self,
         issuer_ca_certificate: x509.Certificate,
@@ -157,6 +138,27 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         else:
             validity = self.default_validity
 
+        key_usage = x509.KeyUsage(
+            digital_signature=True,
+            content_commitment=False,
+            key_cert_sign=False,
+            crl_sign=False,
+            key_encipherment=not isinstance(
+                csr.public_key(), MLDSA44PrivateKey | MLDSA65PrivateKey | MLDSA87PrivateKey
+            ),
+            data_encipherment=False,
+            key_agreement=False,
+            encipher_only=False,
+            decipher_only=False,
+        )
+
+        extended_key_usage = x509.ExtendedKeyUsage(
+            usages=[
+                ExtendedKeyUsageOID.CLIENT_AUTH,
+                ExtendedKeyUsageOID.SERVER_AUTH,
+            ]
+        )
+
         now = datetime.now(tz=UTC)
         not_valid_before = now - self.time_skew
         not_valid_after = now + validity
@@ -169,8 +171,8 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
         builder = builder.serial_number(x509.random_serial_number())
         builder = builder.public_key(csr.public_key())
 
-        builder = builder.add_extension(self.KEY_USAGE, critical=True)
-        builder = builder.add_extension(self.EXTENDED_KEY_USAGE, critical=False)
+        builder = builder.add_extension(key_usage, critical=True)
+        builder = builder.add_extension(extended_key_usage, critical=False)
 
         builder = builder.add_extension(
             x509.SubjectKeyIdentifier.from_public_key(csr.public_key()),
