@@ -296,7 +296,7 @@ def command_renew(args: argparse.Namespace) -> NodeCertificate:
         data_key = JWK.from_json(fp.read())
 
     crv_kwargs = {"crv": data_key.crv} if data_key.kty in ["OKP", "EC"] else {}
-    x509_key = generate_x509_key(kty=data_key.kty, alg=data_key.alg, **crv_kwargs)
+    x509_key = generate_x509_key(kty=data_key.kty, alg=data_key.get("alg"), **crv_kwargs)
 
     server = args.server or data_key.get("iss") or DEFAULT_SERVER
 
