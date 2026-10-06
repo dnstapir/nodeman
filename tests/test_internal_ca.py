@@ -33,7 +33,11 @@ def _verify_certification_information(res: CertificateInformation) -> None:
     assert verified_client.subjects is not None
 
 
-def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> x509.Certificate:
+def _test_internal_ca(
+    ca_private_key: PrivateKey,
+    client_private_key: PrivateKey | None = None,
+    verify: bool = True,
+) -> CertificateInformation:
     """Test Internal CA"""
 
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Internal Test CA")])
@@ -48,7 +52,7 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> x509.C
 
     _ = ca_client.ca_fingerprint
 
-    key = generate_similar_key(ca_private_key)
+    key = client_private_key or generate_similar_key(ca_private_key)
     name = "hostname.example.com"
     csr = generate_x509_csr(key=key, name=name)
 
@@ -73,7 +77,7 @@ def _test_internal_ca(ca_private_key: PrivateKey, verify: bool = True) -> x509.C
     if verify:
         _verify_certification_information(res)
 
-    return certificate
+    return res
 
 
 def test_internal_sub_ca() -> None:
@@ -139,7 +143,8 @@ def test_internal_ca_file() -> None:
 
 def test_internal_ca_rsa() -> None:
     ca_private_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
-    certificate = _test_internal_ca(ca_private_key)
+    res = _test_internal_ca(ca_private_key, verify=True)
+    certificate = res.cert_chain[0]
     assert isinstance(certificate, x509.Certificate)
     assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is True
 
@@ -166,20 +171,39 @@ def test_internal_ca_ed448() -> None:
 
 def test_internal_ca_mldsa44() -> None:
     ca_private_key = MLDSA44PrivateKey.generate()
-    certificate = _test_internal_ca(ca_private_key, verify=False)
+    res = _test_internal_ca(ca_private_key, verify=False)
+    certificate = res.cert_chain[0]
     assert isinstance(certificate, x509.Certificate)
     assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False
 
 
 def test_internal_ca_mldsa65() -> None:
     ca_private_key = MLDSA65PrivateKey.generate()
-    certificate = _test_internal_ca(ca_private_key, verify=False)
+    res = _test_internal_ca(ca_private_key, verify=False)
+    certificate = res.cert_chain[0]
     assert isinstance(certificate, x509.Certificate)
     assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False
 
 
 def test_internal_ca_mldsa87() -> None:
     ca_private_key = MLDSA87PrivateKey.generate()
-    certificate = _test_internal_ca(ca_private_key, verify=False)
+    res = _test_internal_ca(ca_private_key, verify=False)
+    certificate = res.cert_chain[0]
     assert isinstance(certificate, x509.Certificate)
     assert certificate.extensions.get_extension_for_class(x509.KeyUsage).value.key_encipherment is False
+
+
+def test_internal_ca_mixed_ed25519_mldsa44() -> None:
+    ca_private_key = Ed25519PrivateKey.generate()
+    client_private_key = MLDSA44PrivateKey.generate()
+    res = _test_internal_ca(ca_private_key, verify=False, client_private_key=client_private_key)
+    certificate = res.cert_chain[0]
+    assert isinstance(certificate, x509.Certificate)
+
+
+def test_internal_ca_mixed_rsa_mldsa44() -> None:
+    ca_private_key = rsa.generate_private_key(public_exponent=RSA_EXPONENT, key_size=2048)
+    client_private_key = MLDSA44PrivateKey.generate()
+    res = _test_internal_ca(ca_private_key, verify=False, client_private_key=client_private_key)
+    certificate = res.cert_chain[0]
+    assert isinstance(certificate, x509.Certificate)

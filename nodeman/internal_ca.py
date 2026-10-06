@@ -26,6 +26,7 @@ from nodeman.x509 import (
     CertificateInformation,
     CertificateRequestRefused,
     PrivateKey,
+    get_hash_algorithm_from_key,
     verify_x509_csr_data,
     verify_x509_csr_signature,
 )
@@ -198,7 +199,7 @@ class InternalCertificateAuthority(CertificateAuthorityClient):
 
         certificate = builder.sign(
             private_key=self.issuer_ca_private_key,
-            algorithm=self.issuer_ca_certificate.signature_hash_algorithm,
+            algorithm=get_hash_algorithm_from_key(self.issuer_ca_private_key),
         )
 
         if self.root_ca_certificate != self.issuer_ca_certificate:
