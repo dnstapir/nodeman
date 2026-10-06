@@ -21,7 +21,7 @@ from dnstapir.key_resolver import KEY_ID_VALIDATOR
 
 from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment, TapirRequestMetadata
-from .jose import Base64UrlString, PublicEC, PublicOKP, PublicRSA
+from .jose import Base64UrlString, PublicAKP, PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_PATTERN,
     NODE_TAG_PATTERN,
@@ -347,6 +347,7 @@ def get_all_nodes(
                             PublicRSA.model_json_schema(),
                             PublicEC.model_json_schema(),
                             PublicOKP.model_json_schema(),
+                            PublicAKP.model_json_schema(),
                         ]
                     },
                 },
