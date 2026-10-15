@@ -52,6 +52,9 @@ nodes_public_key_queries = meter.create_counter(
 node_configurations_requested = meter.create_counter(
     "nodes.configurations", description="The number of node configurations requested"
 )
+nodes_certificates_requested = meter.create_counter(
+    "nodes.certificates_requested", description="The number of node certificates requested"
+)
 
 router = APIRouter()
 
@@ -242,7 +245,7 @@ async def create_node(
         expire=expire,
     ).save()
 
-    nodes_created.add(1, {"creator": username})
+    nodes_created.add(1, {"creator": username, "name": node.name})
 
     logging.info(
         "%s created node %s tags %s",
@@ -395,7 +398,7 @@ async def get_node_public_key(
     except ValueError as exc:
         raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
 
-    nodes_public_key_queries.add(1, {"media_type": str(media_type)})
+    nodes_public_key_queries.add(1, {"media_type": str(media_type), "name": name})
 
     headers = {
         **get_cache_headers(ttl=request.app.settings.nodes.node_public_key_ttl),
@@ -539,7 +542,7 @@ async def enroll_node(
     node.save()
     node_enrollment.delete()
 
-    nodes_enrolled.add(1)
+    nodes_enrolled.add(1, {"name": name})
 
     return NodeEnrollmentResult(
         **create_node_configuration(name=name, request=request).model_dump(),
@@ -610,7 +613,7 @@ async def renew_node(
             request=request,
         )
 
-    nodes_renewed.add(1)
+    nodes_renewed.add(1, {"name": name})
 
     return res
 
@@ -639,7 +642,7 @@ async def get_node_configuration(
 
     res = create_node_configuration(name=name, request=request)
 
-    node_configurations_requested.add(1)
+    node_configurations_requested.add(1, {"name": name})
 
     headers = get_cache_headers(ttl=request.app.settings.nodes.configuration_ttl)
     response.headers.update(headers)
@@ -662,6 +665,7 @@ async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> 
     node = find_node(name)
 
     if certificate := TapirCertificate.objects(name=node.name).order_by("-_id").first():
+        nodes_certificates_requested.add(1, {"name": name})
         return NodeCertificate.from_db_model(certificate)
 
     logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
