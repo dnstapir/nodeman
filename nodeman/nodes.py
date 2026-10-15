@@ -45,14 +45,15 @@ meter = metrics.get_meter("nodeman.meter")
 
 nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes certificate enrolled")
 nodes_renewed = meter.create_counter("nodes.renewed", description="The number of node certificate renewed")
+
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
 )
-node_configurations_requested = meter.create_counter(
-    "nodes.configurations", description="The number of node configurations requested"
+nodes_configurations_queries = meter.create_counter(
+    "nodes.configuration_queries", description="The number of node configurations queried"
 )
-nodes_certificates_requested = meter.create_counter(
-    "nodes.certificates_requested", description="The number of node certificates requested"
+nodes_certificates_queries = meter.create_counter(
+    "nodes.certificate_queries", description="The number of node certificates queried"
 )
 
 router = APIRouter()
@@ -395,7 +396,7 @@ async def get_node_public_key(
     except ValueError as exc:
         raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
 
-    nodes_public_key_queries.add(1, {"media_type": str(media_type), "name": name})
+    nodes_public_key_queries.add(1, {"media_type": str(media_type)})
 
     headers = {
         **get_cache_headers(ttl=request.app.settings.nodes.node_public_key_ttl),
@@ -539,7 +540,7 @@ async def enroll_node(
     node.save()
     node_enrollment.delete()
 
-    nodes_enrolled.add(1, {"name": name})
+    nodes_enrolled.add(1)
 
     return NodeEnrollmentResult(
         **create_node_configuration(name=name, request=request).model_dump(),
@@ -610,7 +611,7 @@ async def renew_node(
             request=request,
         )
 
-    nodes_renewed.add(1, {"name": name})
+    nodes_renewed.add(1)
 
     return res
 
@@ -639,7 +640,7 @@ async def get_node_configuration(
 
     res = create_node_configuration(name=name, request=request)
 
-    node_configurations_requested.add(1, {"name": name})
+    nodes_configurations_queries.add(1)
 
     headers = get_cache_headers(ttl=request.app.settings.nodes.configuration_ttl)
     response.headers.update(headers)
@@ -662,7 +663,7 @@ async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> 
     node = find_node(name)
 
     if certificate := TapirCertificate.objects(name=node.name).order_by("-_id").first():
-        nodes_certificates_requested.add(1, {"name": name})
+        nodes_certificates_queries.add(1)
         return NodeCertificate.from_db_model(certificate)
 
     logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
