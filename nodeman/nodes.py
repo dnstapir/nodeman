@@ -43,8 +43,10 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
-nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes certificate enrolled")
-nodes_renewed = meter.create_counter("nodes.renewed", description="The number of node certificate renewed")
+nodes_created = meter.create_counter("nodes.created", description="The number of nodes created")
+nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes enrolled")
+nodes_renewed = meter.create_counter("nodes.renewed", description="The number of nodes renewed")
+
 
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
@@ -244,6 +246,8 @@ async def create_node(
         key=node_enrollment_key.export(as_dict=True, private_key=node_enrollment_key.kty == "oct"),
         expire=expire,
     ).save()
+
+    nodes_created.add(1)
 
     logging.info(
         "%s created node %s tags %s",
