@@ -44,13 +44,18 @@ tracer = trace.get_tracer("nodeman.tracer")
 meter = metrics.get_meter("nodeman.meter")
 
 nodes_created = meter.create_counter("nodes.created", description="The number of nodes created")
-nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes certificate enrolled")
-nodes_renewed = meter.create_counter("nodes.renewed", description="The number of node certificate renewed")
+nodes_enrolled = meter.create_counter("nodes.enrolled", description="The number of nodes enrolled")
+nodes_renewed = meter.create_counter("nodes.renewed", description="The number of nodes renewed")
+
+
 nodes_public_key_queries = meter.create_counter(
     "nodes.public_key_queries", description="The number of node public keys queried"
 )
-node_configurations_requested = meter.create_counter(
-    "nodes.configurations", description="The number of node configurations requested"
+nodes_configurations_queries = meter.create_counter(
+    "nodes.configuration_queries", description="The number of node configurations queried"
+)
+nodes_certificates_queries = meter.create_counter(
+    "nodes.certificate_queries", description="The number of node certificates queried"
 )
 
 router = APIRouter()
@@ -242,7 +247,7 @@ async def create_node(
         expire=expire,
     ).save()
 
-    nodes_created.add(1, {"creator": username})
+    nodes_created.add(1)
 
     logging.info(
         "%s created node %s tags %s",
@@ -639,7 +644,7 @@ async def get_node_configuration(
 
     res = create_node_configuration(name=name, request=request)
 
-    node_configurations_requested.add(1)
+    nodes_configurations_queries.add(1)
 
     headers = get_cache_headers(ttl=request.app.settings.nodes.configuration_ttl)
     response.headers.update(headers)
@@ -662,6 +667,7 @@ async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> 
     node = find_node(name)
 
     if certificate := TapirCertificate.objects(name=node.name).order_by("-_id").first():
+        nodes_certificates_queries.add(1)
         return NodeCertificate.from_db_model(certificate)
 
     logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
