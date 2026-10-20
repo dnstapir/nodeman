@@ -488,8 +488,8 @@ wheels = [
 
 [[package]]
 name = "dnstapir"
-version = "1.7.1"
-source = { git = "https://github.com/dnstapir/python-dnstapir.git?tag=v1.7.1#b2ef7a3e0b883d305e7432ca7015ffcd7fa581c8" }
+version = "1.7.2"
+source = { git = "https://github.com/dnstapir/python-dnstapir.git?tag=v1.7.2#4ae7fbfff8c3b62e1644569ebc6adc13082c9cec" }
 dependencies = [
     { name = "structlog" },
 ]
@@ -804,7 +804,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "cryptography", specifier = ">=50.0.0" },
-    { name = "dnstapir", extras = ["keymanager", "opentelemetry"], git = "https://github.com/dnstapir/python-dnstapir.git?tag=v1.7.1" },
+    { name = "dnstapir", extras = ["keymanager", "opentelemetry"], git = "https://github.com/dnstapir/python-dnstapir.git?tag=v1.7.2" },
     { name = "fastapi", specifier = ">=0.137.1" },
     { name = "httpx2", extras = ["http2"], specifier = ">=2.12.0" },
     { name = "jwcrypto", specifier = ">=1.6.1" },

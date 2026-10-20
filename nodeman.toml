@@ -32,10 +32,10 @@ kty = "OKP"
 crv = "Ed25519"
 alg = "EdDSA"
 
-#[otlp]
-#spans_endpoint = "http://localhost:4317"
-#metrics_endpoint = "http://localhost:4317"
-#insecure = true
+[otlp]
+spans_endpoint = "grpc://localhost:4317"
+metrics_endpoint = "grpc://localhost:4317"
+insecure = true
 
 [[users]]
 username = "username"
