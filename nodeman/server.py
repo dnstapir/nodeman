@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
+import fastapi_problem.handler
 import mongoengine
 import uvicorn
 from fastapi import FastAPI
@@ -33,6 +34,10 @@ class NodemanServer(FastAPI):
         self.logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self.settings = settings
         super().__init__(**OPENAPI_METADATA, lifespan=self.lifespan)
+
+        # Configure RFC9457 exception handling
+        eh = fastapi_problem.handler.new_exception_handler()
+        fastapi_problem.handler.add_exception_handler(self, eh)
 
         self.add_middleware(LoggingMiddleware)
         self.add_middleware(ProxyHeadersMiddleware, trusted_hosts=[str(x) for x in self.settings.http.trusted_hosts])

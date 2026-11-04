@@ -986,3 +986,13 @@ def test_enroll_expire() -> None:
 
     response = client.post(node_enroll_url, json=enrollment_request)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_error_handler() -> None:
+    client = get_test_client()
+    server = ""
+
+    response = client.get(urljoin(server, "/api/v1/b0rken"))
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    print(response.text)
+    assert response.headers["content-type"] == "application/problem+json"
