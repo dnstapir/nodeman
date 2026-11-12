@@ -77,7 +77,14 @@ def find_node(name: str, tags: list[str] | None = None) -> TapirNode:
     if node := TapirNode.objects(query).first():
         return node
 
-    logging.debug("Node %s not found", name, extra={"nodename": name})
+    logging.debug(
+        "Node %s not found",
+        name,
+        extra={
+            "nodeman_event": "node_not_found",
+            "nodename": name,
+        },
+    )
     raise HTTPException(status.HTTP_404_NOT_FOUND)
 
 
@@ -163,6 +170,7 @@ def process_csr_request(
         x509_certificate_serial_number,
         x509_not_valid_after_utc,
         extra={
+            "nodeman_event": "node_certificate_issued",
             "nodename": name,
             "x509_certificate_serial_number": x509_certificate_serial_number,
             "not_valid_after": x509_not_valid_after_utc,
@@ -249,14 +257,6 @@ async def create_node(
 
     nodes_created.add(1)
 
-    logging.info(
-        "%s created node %s tags %s",
-        username,
-        node.name,
-        tags,
-        extra={"username": username, "nodename": node.name, "tags": tags},
-    )
-
     headers = {"Location": f"/api/v1/node/{node.name}"}
 
     res = NodeBootstrapInformation(
@@ -264,6 +264,19 @@ async def create_node(
         key=node_enrollment_key.export(as_dict=True, private_key=True),
         nodeman_url=request.app.settings.nodes.nodeman_url,
         expire=expire,
+    )
+
+    logging.info(
+        "%s created node %s tags %s",
+        username,
+        node.name,
+        tags,
+        extra={
+            "nodeman_event": "node_created",
+            "username": username,
+            "nodename": node.name,
+            "tags": tags,
+        },
     )
 
     return JSONResponse(content=res.model_dump(mode="json"), status_code=status.HTTP_201_CREATED, headers=headers)
@@ -290,7 +303,12 @@ def get_node_information(
             username,
             name,
             tags,
-            extra={"username": username, "nodename": name, "tags": tags},
+            extra={
+                "nodeman_event": "node_queried",
+                "username": username,
+                "nodename": name,
+                "tags": tags,
+            },
         )
         node = find_node(name=name, tags=tags)
     else:
@@ -298,7 +316,11 @@ def get_node_information(
             "%s queried for node %s",
             username,
             name,
-            extra={"username": username, "nodename": name},
+            extra={
+                "nodeman_event": "node_queried",
+                "username": username,
+                "nodename": name,
+            },
         )
         node = find_node(name=name)
     return NodeInformation.from_db_model(node)
@@ -318,25 +340,44 @@ def get_all_nodes(
     thumbprint: Annotated[str, Base64UrlString] | None = None,
 ) -> NodeCollection:
     """Get all nodes"""
+
     query = Q(deleted=None)
+
     if tags:
         logging.info(
             "%s queried for nodes with tags %s",
             username,
             tags,
-            extra={"username": username, "tags": tags},
+            extra={
+                "nodeman_event": "node_queried",
+                "username": username,
+                "tags": tags,
+            },
         )
         query &= Q(tags__all=tags)
     else:
-        logging.info("%s queried for all nodes", username, extra={"username": username})
+        logging.info(
+            "%s queried for all nodes",
+            username,
+            extra={
+                "nodeman_event": "node_queried",
+                "username": username,
+            },
+        )
+
     if thumbprint:
         logging.info(
             "%s queried for nodes with thumbprint %s",
             username,
             thumbprint,
-            extra={"username": username, "thumbprint": thumbprint},
+            extra={
+                "nodeman_event": "node_queried",
+                "username": username,
+                "thumbprint": thumbprint,
+            },
         )
         query &= Q(thumbprint=thumbprint)
+
     return NodeCollection(nodes=[NodeInformation.from_db_model(node) for node in TapirNode.objects(query)])
 
 
@@ -407,6 +448,17 @@ async def get_node_public_key(
         "Vary": "Accept",
     }
 
+    logging.info(
+        "Node %s public key retrieved",
+        node.name,
+        extra={
+            "nodeman_event": "node_public_key_queried",
+            "nodename": node.name,
+            "tags": node.tags,
+            "media_type": str(media_type),
+        },
+    )
+
     return Response(content=content, media_type=media_type, headers=headers)
 
 
@@ -437,7 +489,16 @@ def delete_node(
     if node_enrollment := TapirNodeEnrollment.objects(name=name).first():
         node_enrollment.delete()
 
-    logging.info("%s deleted node %s", username, node.name, extra={"username": username, "nodename": node.name})
+    logging.info(
+        "%s deleted node %s",
+        username,
+        node.name,
+        extra={
+            "nodeman_event": "node_deleted",
+            "username": username,
+            "nodename": node.name,
+        },
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -546,6 +607,16 @@ async def enroll_node(
 
     nodes_enrolled.add(1)
 
+    logging.info(
+        "Node %s enrolled",
+        name,
+        extra={
+            "nodeman_event": "node_enrolled",
+            "nodename": node.name,
+            "tags": node.tags,
+        },
+    )
+
     return NodeEnrollmentResult(
         **create_node_configuration(name=name, request=request).model_dump(),
         x509_certificate=node_certificate.x509_certificate,
@@ -617,6 +688,16 @@ async def renew_node(
 
     nodes_renewed.add(1)
 
+    logging.info(
+        "Node %s certificate renewed",
+        name,
+        extra={
+            "nodeman_event": "node_renewed",
+            "nodename": node.name,
+            "tags": node.tags,
+        },
+    )
+
     return res
 
 
@@ -649,6 +730,16 @@ async def get_node_configuration(
     headers = get_cache_headers(ttl=request.app.settings.nodes.configuration_ttl)
     response.headers.update(headers)
 
+    logging.info(
+        "Node %s configuration retrieved",
+        name,
+        extra={
+            "nodeman_event": "node_configuration_queried",
+            "nodename": node.name,
+            "tags": node.tags,
+        },
+    )
+
     return res
 
 
@@ -668,7 +759,25 @@ async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> 
 
     if certificate := TapirCertificate.objects(name=node.name).order_by("-_id").first():
         nodes_certificates_queries.add(1)
+        logging.info(
+            "Node %s certificate retrieved",
+            name,
+            extra={
+                "nodeman_event": "node_certificate_queried",
+                "nodename": node.name,
+                "tags": node.tags,
+            },
+        )
         return NodeCertificate.from_db_model(certificate)
 
-    logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
+    logging.debug(
+        "Certificate for node %s not found",
+        name,
+        extra={
+            "nodeman_event": "node_certificate_not_found",
+            "nodename": name,
+            "tags": node.tags,
+        },
+    )
+
     raise HTTPException(status.HTTP_404_NOT_FOUND)
