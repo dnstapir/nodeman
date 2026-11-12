@@ -21,6 +21,26 @@ from dnstapir.key_resolver import KEY_ID_VALIDATOR
 
 from .authn import get_current_username
 from .db_models import TapirCertificate, TapirNode, TapirNodeEnrollment, TapirRequestMetadata
+from .exceptions import (
+    BadRequestProblem,
+    CertificateIssuingError,
+    CertificateNotFound,
+    CertificateRequestRefused as CertificateRequestRefusedProblem,
+    InvalidCertificateLifetime,
+    InvalidCertificateSigningRequest,
+    InvalidDataName,
+    InvalidDataSignature,
+    InvalidEnrollmentSignature,
+    InvalidNodeName,
+    InvalidNodeTag,
+    NodeAlreadyEnrolled,
+    NodeAlreadyExists,
+    NodeEnrollmentExpired,
+    NodeEnrollmentFailed,
+    NodeNotActivated,
+    NodeNotFound,
+    UnsupportedPublicKeyFormat,
+)
 from .jose import Base64UrlString, PublicAKP, PublicEC, PublicOKP, PublicRSA
 from .models import (
     DOMAIN_NAME_PATTERN,
@@ -78,21 +98,21 @@ def find_node(name: str, tags: list[str] | None = None) -> TapirNode:
         return node
 
     logging.debug("Node %s not found", name, extra={"nodename": name})
-    raise HTTPException(status.HTTP_404_NOT_FOUND)
+    raise NodeNotFound
 
 
 def find_legacy_node(name: str, legacy_nodes_directory: Path) -> TapirNode:
     """Return node from fallback nodes directory"""
     try:
         if not KEY_ID_VALIDATOR.match(name):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+            raise InvalidNodeName
         with open(legacy_nodes_directory / f"{name}.pem", "rb") as fp:
             public_key = JWK.from_pem(fp.read())
         logging.info("Returning legacy node %s", name)
         return TapirNode(name=name, public_key=public_key.export(as_dict=True, private_key=False))
     except FileNotFoundError:
         pass
-    raise HTTPException(status.HTTP_404_NOT_FOUND)
+    raise NodeNotFound
 
 
 def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
@@ -108,7 +128,7 @@ def create_node_configuration(name: str, request: Request) -> NodeConfiguration:
 
 def get_node_name(name: str) -> str:
     if not DOMAIN_NAME_PATTERN.match(name):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+        raise InvalidNodeName
     return name
 
 
@@ -118,7 +138,7 @@ def get_node_tags(tags: str | None = None) -> list[str]:
     split_tags = sorted({t for t in (tag.strip() for tag in tags.split(",")) if t})
     for tag in split_tags:
         if not NODE_TAG_PATTERN.match(tag):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node tag")
+            raise InvalidNodeTag
     return split_tags
 
 
@@ -133,16 +153,16 @@ def process_csr_request(
     try:
         if lifetime is not None:
             if lifetime <= 0:
-                raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid certificate lifetime (must be > 0)")
+                raise InvalidCertificateLifetime
             validity = timedelta(seconds=lifetime)
         else:
             validity = None
         ca_response = request.app.ca_client.sign_csr(csr, name, validity)
     except CertificateRequestRefused as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Certificate request refused") from exc
+        raise CertificateRequestRefusedProblem from exc
     except Exception as exc:
         logger.error("Failed to process CSR for %s: %s", name, str(exc), exc_info=exc)
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error issuing certificate") from exc
+        raise CertificateIssuingError from exc
 
     x509_certificate_pem = "".join(
         [certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ca_response.cert_chain]
@@ -229,10 +249,10 @@ async def create_node(
             node = TapirNode(name=name, domain=domain, tags=tags).save()
         except NotUniqueError as exc:
             logging.warning("Node name %s already exists", name, extra={"nodename": name})
-            raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Node name {name} already exists") from exc
+            raise NodeAlreadyExists from exc
     else:
         logging.warning("Explicit node name %s not acceptable", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid node name")
+        raise InvalidNodeName
 
     expire = (
         datetime.now(tz=UTC) + timedelta(seconds=request.app.settings.enrollment.ttl)
@@ -376,14 +396,14 @@ async def get_node_public_key(
 
     try:
         node = find_node(name=name, tags=tags)
-    except HTTPException as exc:
+    except (HTTPException, NodeNotFound) as exc:
         if exc.status_code == 404 and request.app.settings.legacy_nodes_directory:
             node = find_legacy_node(name, request.app.settings.legacy_nodes_directory)
         else:
             raise exc
 
     if not node.public_key:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+        raise NodeNotFound
 
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
@@ -398,7 +418,7 @@ async def get_node_public_key(
                     jwk_dict = {**node.public_key, "kid": name, "tags": node.tags}
                     content = json.dumps(jwk_dict)
     except ValueError as exc:
-        raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE) from exc
+        raise UnsupportedPublicKeyFormat from exc
 
     nodes_public_key_queries.add(1, {"media_type": str(media_type)})
 
@@ -429,7 +449,7 @@ def delete_node(
 
     if node.deleted:
         logging.info("Node %s deleted", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
+        raise NodeNotFound
 
     node.deleted = datetime.now(tz=UTC)
     node.save()
@@ -460,7 +480,7 @@ async def enroll_node(
 
     if node.activated:
         logging.info("Node %s already enrolled", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node already enrolled")
+        raise NodeAlreadyEnrolled
 
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
@@ -469,11 +489,11 @@ async def enroll_node(
     node_enrollment = TapirNodeEnrollment.objects(name=name).first()
     if node_enrollment is None:
         logging.info("Node %s enrollment failed", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment failed")
+        raise NodeEnrollmentFailed
 
     if node_enrollment.expire and node_enrollment.expire < datetime.now(tz=UTC):
         logging.info("Node %s enrollment expired", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node enrollment expired")
+        raise NodeEnrollmentExpired
 
     enrollment_key = JWK(**node_enrollment.key)
 
@@ -498,12 +518,11 @@ async def enroll_node(
                 extra={"nodename": name, "enrollment_key_id": enrollment_key.key_id},
             )
 
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid enrollment signature") from exc
-
+            raise InvalidEnrollmentSignature from exc
         try:
             message = EnrollmentRequest.model_validate_json(jws.payload)
         except ValidationError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST) from exc
+            raise BadRequestProblem from exc
 
         public_key = JWK(**message.public_key.model_dump(exclude_none=True))
 
@@ -517,10 +536,10 @@ async def enroll_node(
             logger.warning(
                 "Invalid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
             )
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
+            raise InvalidDataSignature from exc
 
         if public_key.key_id and public_key.key_id != name:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Invalid data name")
+            raise InvalidDataName
 
         node.public_key = public_key.export(as_dict=True, private_key=False)
         node.public_key.pop("kid", None)
@@ -531,7 +550,7 @@ async def enroll_node(
         try:
             x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
         except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
+            raise InvalidCertificateSigningRequest from exc
         node_certificate = process_csr_request(
             csr=x509_csr,
             name=name,
@@ -573,7 +592,7 @@ async def renew_node(
 
     if not node.activated:
         logging.debug("Renewal attempt for non-activated node %s", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+        raise NodeNotActivated
 
     span = trace.get_current_span()
     span.set_attribute("node.name", name)
@@ -596,18 +615,18 @@ async def renew_node(
             logger.warning(
                 "Invalid data signature from %s", name, extra={"nodename": name, "thumbprint": public_key.thumbprint()}
             )
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid data signature") from exc
+            raise InvalidDataSignature from exc
         try:
             message = RenewalRequest.model_validate_json(jws.payload)
         except ValidationError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST) from exc
+            raise BadRequestProblem from exc
 
     # Verify X.509 CSR and issue certificate
     with tracer.start_as_current_span("issue_certificate"):
         try:
             x509_csr = x509.load_pem_x509_csr(message.x509_csr.encode())
         except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid CSR") from exc
+            raise InvalidCertificateSigningRequest from exc
         res = process_csr_request(
             csr=x509_csr,
             name=name,
@@ -640,7 +659,7 @@ async def get_node_configuration(
 
     if not node.activated:
         logging.debug("Node %s not activated", name, extra={"nodename": name})
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Node not activated")
+        raise NodeNotActivated
 
     res = create_node_configuration(name=name, request=request)
 
@@ -671,4 +690,4 @@ async def get_node_certificate(name: Annotated[str, Depends(get_node_name)]) -> 
         return NodeCertificate.from_db_model(certificate)
 
     logging.debug("Certificate for node %s not found", name, extra={"nodename": name})
-    raise HTTPException(status.HTTP_404_NOT_FOUND)
+    raise CertificateNotFound
