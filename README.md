@@ -143,6 +143,7 @@ The renewal request is a JWS signed with the data key (algorithm depending on ke
 
 - `timestamp`, A timestamp with the current time (ISO8601)
 - `x509_csr`, A string with a PEM-encoded X.509 Certificate Signing Request with _Common Name_ and _Subject Alternative Name_ set to the full node name.
+- `x509_lifetime`, Requested client certificate lifetime in seconds; must be > 0 and within CA policy limits.
 
 #### Example
 
