@@ -4,10 +4,10 @@ server =  "mongodb://localhost/nodeman"
 [internal_ca]
 issuer_ca_certificate = "internal_ca_certificate.pem"
 issuer_ca_private_key = "internal_ca_private_key.pem"
-validity_days = 1
-min_validity_seconds = 10
-max_validity_seconds = 604800
-time_skew_seconds = 0
+default_validity = "P1D"
+min_validity = "PT10S"
+max_validity = "P10D"
+time_skew = "PT60S"
 
 #[step]
 #ca_url = "https://localhost:9000"
