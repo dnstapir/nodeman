@@ -72,7 +72,7 @@ class InternalCaSettings(BaseModel):
     issuer_ca_private_key: FilePath
     root_ca_certificate: FilePath | None = None
 
-    default_validity: timedelta | None = Field(default=timedelta(days=90), ge=timedelta(seconds=0))
+    default_validity: timedelta = Field(default=timedelta(days=90), ge=timedelta(seconds=0))
     min_validity: timedelta | None = Field(default=None, ge=timedelta(seconds=0))
     max_validity: timedelta | None = Field(default=None, ge=timedelta(seconds=0))
     time_skew: timedelta = Field(default=timedelta(seconds=0), ge=timedelta(seconds=0))
