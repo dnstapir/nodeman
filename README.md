@@ -182,7 +182,9 @@ server =  "mongodb://localhost/nodeman"
 [internal_ca]
 issuer_ca_certificate = "internal_ca_certificate.pem"
 issuer_ca_private_key = "internal_ca_private_key.pem"
-validity_days = 60
+default_validity = "P10D"
+min_validity = "PT5M"
+max_validity = "P90D"
 
 [nodes]
 nodeman_url = "https://nodeman.example.com"

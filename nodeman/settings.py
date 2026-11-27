@@ -1,6 +1,7 @@
 import hashlib
 import os
 from contextlib import suppress
+from datetime import timedelta
 from ipaddress import IPv4Address, IPv4Network, IPv6Network
 from typing import Annotated, Self
 
@@ -70,30 +71,39 @@ class InternalCaSettings(BaseModel):
     issuer_ca_certificate: FilePath
     issuer_ca_private_key: FilePath
     root_ca_certificate: FilePath | None = None
-    validity_days: int = Field(default=90, ge=0)
+
+    default_validity: timedelta | None = Field(default=timedelta(days=90), ge=timedelta(seconds=0))
+    min_validity: timedelta | None = Field(default=None, ge=timedelta(seconds=0))
+    max_validity: timedelta | None = Field(default=None, ge=timedelta(seconds=0))
+    time_skew: timedelta = Field(default=timedelta(seconds=0), ge=timedelta(seconds=0))
+
+    # for backward compatibility
+    validity_days: int | None = Field(default=None, ge=0)
     min_validity_seconds: int | None = Field(default=None, ge=0)
     max_validity_seconds: int | None = Field(default=None, ge=0)
-    time_skew_seconds: int = Field(default=0, ge=0)
+    time_skew_seconds: int | None = Field(default=None, ge=0)
 
-    @property
-    def validity_seconds(self) -> int:
-        return self.validity_days * 86400
-
-    # within class InternalCaSettings
     @model_validator(mode="after")
-    def _validate_validity_bounds(self) -> Self:
-        if (
-            self.min_validity_seconds is not None
-            and self.max_validity_seconds is not None
-            and self.min_validity_seconds > self.max_validity_seconds
-        ):
-            raise ValueError("min_validity_seconds must be <= max_validity_seconds")
+    def _validate_validity(self) -> Self:
+        """Validate and normalize validity settings"""
 
-        if self.min_validity_seconds is not None and self.validity_seconds < self.min_validity_seconds:
-            raise ValueError("validity shorter than min validity")
+        if self.validity_days is not None:
+            self.default_validity = timedelta(days=self.validity_days)
+        if self.min_validity_seconds is not None:
+            self.min_validity = timedelta(seconds=self.min_validity_seconds)
+        if self.max_validity_seconds is not None:
+            self.max_validity = timedelta(seconds=self.max_validity_seconds)
+        if self.time_skew_seconds is not None:
+            self.time_skew = timedelta(seconds=self.time_skew_seconds)
 
-        if self.max_validity_seconds is not None and self.validity_seconds > self.max_validity_seconds:
-            raise ValueError("validity larger than max validity")
+        if self.min_validity is not None and self.max_validity is not None and self.min_validity > self.max_validity:
+            raise ValueError("min validity must be <= max validity")
+
+        if self.min_validity is not None and self.default_validity < self.min_validity:
+            raise ValueError("default validity shorter than min validity")
+
+        if self.max_validity is not None and self.default_validity > self.max_validity:
+            raise ValueError("default validity larger than max validity")
 
         return self
 
